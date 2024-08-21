@@ -1,11 +1,16 @@
+import json
 import xml.etree.ElementTree as ET
-
+from json import JSONDecodeError
 
 from django.shortcuts import render
+from django.http import JsonResponse
 
 
-tree = ET.parse('/home/andrew_q/PycharmProjects/TechTask/(bkl_fix)routes/L1/R2/BNT/1pt.bnt')
-root = tree.getroot()
+TREE = ET.parse('/home/andrew_q/PycharmProjects/TechTask/(bkl_fix)routes/L1/R2/BNT/1pt.bnt')
+ROOT = TREE.getroot()
+
+SW = None
+SH = None
 
 def parse_station(station):
     transfers = []
@@ -17,7 +22,8 @@ def parse_station(station):
             for iconpart in transfer.find('icon').findall('iconpart')
         ]
         transfers.append({
-            'transfer_name': transfer.get('name'),
+            'transfer_name': transfer.get('name').split('|')[0],
+            'transfer_name2': transfer.get('name').split('|')[1],
             'isshow': transfer.get('isShow'),
             'icon_parts': icon_parts,
         })
@@ -35,25 +41,70 @@ def parse_station(station):
         'transfers': transfers,
     }
 
-def get_stop_info(root):
+def get_stop_info(ROOT):
     stations = []
 
-    for station in root.findall('station'):
+    for station in ROOT.findall('station'):
         stations.append(parse_station(station))
 
-    line = {
+    line_icons = []
+    line_icons_element = ROOT.find('icon')
+    if line_icons_element is not None:
+        for iconpart in ROOT.find('icon').findall('iconpart'):
+            line_icons.append({
+                'color': iconpart.get('color'),
+                'symbol': iconpart.get('symbol'),
+            })
+
+    route = {
         'line': {
-            'name': root.get('name').split('|')[0],
-            'name2': root.get('name').split('|')[1],
-            'isround': root.get('isround'),
+            'name': ROOT.get('name').split('|')[0],
+            'name2': ROOT.get('name').split('|')[1],
+            'isround': ROOT.get('isround'),
+            'icons': line_icons,
         },
         'stations': stations,
     }
 
-    return line
+    return route
 
-print(get_stop_info(root))
+
+d = get_stop_info(ROOT)
+print(d)
+# print(d['line']['isround'])
 
 def index(request):
+    global SW, SH
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            SW = data.get('screen_width')
+            SH = data.get('screen_height')
+
+            if SW == 1920 and SH == 1080:
+                return JsonResponse({'redirect_url': 'BNT'})
+            else:
+                raise Exception
+        except JSONDecodeError:
+            return JsonResponse({'status': 'fail', 'message': 'Invalid JSON'}, status=400)
     return render(request, 'Screen_Server/index.html')
-# Create your views here.
+
+def get_BNT(request):
+    route = get_stop_info(ROOT)
+    if route['line']['isround'] == 'true':
+        context = {
+            'line_name': route['line']['name'],
+            'line_name2': route['line']['name2'],
+            'line_icons': route['line']['icons'],
+            'stops': route['stations'],
+        }
+    else:
+        context = {
+            'line_name': route['line']['name'],
+            'line_name2': route['line']['name2'],
+            'line_icons': route['line']['icons'],
+            'stops': route['stations'],
+            'final_stop': route['stations'][-1],
+        }
+    return render(request, 'Screen_Server/BNT.html', context)
+

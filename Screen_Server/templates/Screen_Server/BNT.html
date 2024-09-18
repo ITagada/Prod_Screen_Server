@@ -18,30 +18,6 @@
         <div id="trigger">Click to Slide</div>
     </div>
 
-    <script>
-        const topContainer = document.getElementById('top-container');
-        const bottomContainer = document.getElementById('bottom-container');
-        const trigger = document.getElementById('trigger');
-        let isVisible = true;
-
-        setTimeout(() => {
-            topContainer.style.transform = 'translateY(0)';
-            bottomContainer.style.transform = 'translateY(100%)';
-        }, 50);
-
-
-        trigger.addEventListener('click', () => {
-            if (isVisible) {
-                // Прячем контейнеры
-                topContainer.style.transform = 'translateY(-100%)';
-                bottomContainer.style.transform = 'translateY(0)';
-            } else {
-                // Показываем контейнеры
-                topContainer.style.transform = 'translateY(0)';
-                bottomContainer.style.transform = 'translateY(100%)';
-            }
-            isVisible = !isVisible;
-        });
-    </script>
+    <script src="/static/Screen_Server/js/screen_animation.js"></script>
 </body>
 </html>

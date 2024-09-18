@@ -17,7 +17,7 @@ body, html {
     top: 0;
     left: 0;
     width: 100%;
-    height: 50%;
+    height: 30%;
     background-color: lightblue;
     transform: translateY(0);
     transition: transform 0.5s ease-in-out; /* Анимация */
@@ -29,7 +29,7 @@ body, html {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 50%;
+    height: 60%;
     background-color: lightcoral;
     transform: translateY(100%);
     transition: transform 0.5s ease-in-out; /* Анимация */
@@ -48,7 +48,7 @@ body, html {
 
 #progress-bar-container {
     position: absolute;
-    top: 50%; /* Центрируем по вертикали */
+    top: 80%; /* Центрируем по вертикали */
     left: 0;
     width: 100%;
     height: 10px;
@@ -58,6 +58,11 @@ body, html {
     justify-content: space-between;
     z-index: 5;
     overflow: hidden;
+    transition: top 0.5s ease-in-out;
+}
+
+#progress-bar-container.attached-to-bottom {
+    top: 40%;
 }
 
 #progress-bar {

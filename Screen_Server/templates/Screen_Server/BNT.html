@@ -3,8 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <title>BNT</title>
+    <link rel="stylesheet" href="/static/Screen_Server/CSS/main_screen.css">
 </head>
 <body>
+    <div id="main-container">
+        <div id="top-container" class="container"></div>
+        <div id="middle-container"></div>
+        <div id="progress-bar-container">
+            <div class="stop-marker" data-stop="Start"></div>
+            <div id="progress-bar"></div>
+            <div class="stop-marker" data-stop="End"></div>
+        </div>
+        <div id="bottom-container" class="container"></div>
+        <div id="trigger">Click to Slide</div>
+    </div>
 
+    <script>
+        const topContainer = document.getElementById('top-container');
+        const bottomContainer = document.getElementById('bottom-container');
+        const trigger = document.getElementById('trigger');
+        let isVisible = true;
+
+        setTimeout(() => {
+            topContainer.style.transform = 'translateY(0)';
+            bottomContainer.style.transform = 'translateY(100%)';
+        }, 50);
+
+
+        trigger.addEventListener('click', () => {
+            if (isVisible) {
+                // Прячем контейнеры
+                topContainer.style.transform = 'translateY(-100%)';
+                bottomContainer.style.transform = 'translateY(0)';
+            } else {
+                // Показываем контейнеры
+                topContainer.style.transform = 'translateY(0)';
+                bottomContainer.style.transform = 'translateY(100%)';
+            }
+            isVisible = !isVisible;
+        });
+    </script>
 </body>
 </html>

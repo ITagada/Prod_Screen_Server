@@ -17,6 +17,8 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    'channels',
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -25,6 +27,17 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Screen_Server.apps.ScreenServerConfig',
 ]
+
+ASGI_APPLICATION = 'Product_Screen_Server.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('redis', 6379)],
+        }
+    }
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -55,7 +68,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'Product_Screen_Server.wsgi.application'
+# WSGI_APPLICATION = 'Product_Screen_Server.wsgi.application'
 
 
 DATABASES = {

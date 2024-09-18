@@ -1,0 +1,99 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden; /* Отключаем скроллирование */
+}
+
+#main-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+
+#top-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background-color: lightblue;
+    transform: translateY(0);
+    transition: transform 0.5s ease-in-out; /* Анимация */
+    z-index: 2;
+}
+
+#bottom-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background-color: lightcoral;
+    transform: translateY(100%);
+    transition: transform 0.5s ease-in-out; /* Анимация */
+    z-index: 3;
+}
+
+#middle-container {
+    flex-grow: 1;
+    position: relative;
+    background-color: lightgreen;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+#progress-bar-container {
+    position: absolute;
+    top: 50%; /* Центрируем по вертикали */
+    left: 0;
+    width: 100%;
+    height: 10px;
+    background-color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 5;
+    overflow: hidden;
+}
+
+#progress-bar {
+    height: 100%;
+    width: 0%;
+    background-color: #4caf50;
+    transition: width 0.5s ease;
+    z-index: 5;
+}
+
+.stop-marker {
+    width: 10px;
+    height: 10px;
+    background-color: red;
+    border-radius: 50%;
+    position: absolute;
+    z-index: 5;
+}
+
+.stop-marker::before {
+    content: attr(data-stop);
+    position: absolute;
+    top: -20px;
+    left: -5px;
+    font-size: 10px;
+    z-index: 5;
+}
+
+#trigger {
+    position: absolute;
+    top: 90%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 10px 20px;
+    background-color: darkslategray;
+    color: white;
+    cursor: pointer;
+    z-index: 4;
+}

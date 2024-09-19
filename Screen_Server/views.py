@@ -2,7 +2,7 @@ import json
 import xml.etree.ElementTree as ET
 from json import JSONDecodeError
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 
 
@@ -87,9 +87,12 @@ def index(request):
                 raise Exception
         except JSONDecodeError:
             return JsonResponse({'status': 'fail', 'message': 'Invalid JSON'}, status=400)
-    return render(request, 'Screen_Server/index.html')
+    return redirect('BNT')
 
 def get_BNT(request):
+    return render(request, 'Screen_Server/BNT.html')
+
+def get_BNT_data():
     route = get_stop_info(ROOT)
     if route['line']['isround'] == 'true':
         context = {
@@ -106,5 +109,5 @@ def get_BNT(request):
             'stops': route['stations'],
             'final_stop': route['stations'][-1],
         }
-    return render(request, 'Screen_Server/BNT.html', context)
+    return context
 

@@ -14,4 +14,7 @@ class BNTConsumer(AsyncWebsocketConsumer):
         pass
 
     async def receive(self, text_data):
-        pass
+        message = json.loads(text_data)
+
+        if message['action'] == 'get_stops':
+            await self.send(text_data=json.dumps(get_BNT_data()))

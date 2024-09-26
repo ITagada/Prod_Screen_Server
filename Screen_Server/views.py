@@ -70,8 +70,6 @@ def get_stop_info(ROOT):
 
 
 d = get_stop_info(ROOT)
-print(d)
-# print(d['line']['isround'])
 
 def index(request):
     global SW, SH

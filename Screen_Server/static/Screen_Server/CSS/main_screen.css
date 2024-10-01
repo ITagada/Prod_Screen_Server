@@ -48,40 +48,51 @@ body, html {
 
 #progress-bar-container {
     position: absolute;
-    top: 80%;
-    left: 5%;
-    width: 100%;
-    height: 10px;
-    background-color: #ccc;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 5;
+    top: 80.4%;
+    left: 50px;
+    z-index: 6;
     transition: top 0.5s ease-in-out;
 }
 
 #progress-bar-container.attached-to-bottom {
-    top: 40%;
+    top: 39.6%;
 }
 
-.stop-marker {
+#progress-line {
+    position: absolute;
+    display: flex;
+    gap: 50px;
+    top: 80%;
+    left: 50px;
+    height: 7px;
+    z-index: 5;
+    transition: top 0.5s ease-in-out;
+}
+
+#progress-line.attached-to-bottom {
+    top: 39.3%;
+}
+
+.stop-point {
     width: 10px;
     height: 10px;
     background-color: white;
     border-radius: 50%;
     border: 5px solid;
     position: absolute;
-    top: 50%;
+    top: 20%;
     transform: translateY(-50%);
-    z-index: 5;
+    z-index: 6;
 }
 
 .stop-info {
     position: absolute;
     top: -50px;
+    bottom: 75px;
     left: 0;
     font-size: clamp(0.2rem, 0.7vw + 0.5rem, 3rem);
-    z-index: 5;
+    white-space: nowrap;
+    z-index: 6;
     pointer-events: none;
 }
 

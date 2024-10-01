@@ -2,8 +2,11 @@ import json
 import xml.etree.ElementTree as ET
 from json import JSONDecodeError
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.core.cache import cache
 
 
 TREE = ET.parse('/home/andrew_q/PycharmProjects/TechTask/(bkl_fix)routes/L1/R2/BNT/1pt.bnt')
@@ -70,7 +73,7 @@ def get_stop_info(ROOT):
 
 
 d = get_stop_info(ROOT)
-
+print(d)
 def index(request):
     global SW, SH
     if request.method == 'POST':
@@ -108,4 +111,45 @@ def get_BNT_data():
             'final_stop': route['stations'][-1],
         }
     return context
+
+def update_route():
+    route = get_stop_info(ROOT)
+    stations = route['stations']
+
+    current_station_index = cache.get('current_station_index', 0)
+
+    if route['line']['isround'] == 'true':
+        if current_station_index == len(stations) - 1:
+            next_station_index = 0
+        else:
+            next_station_index = current_station_index + 1
+    elif current_station_index < (len(stations) - 1):
+        next_station_index = current_station_index + 1
+    else:
+        route['stations'].reverse()
+        next_station_index = 0
+
+    current_station = stations[current_station_index]
+    next_station = stations[next_station_index]
+
+    cache.set('current_station_index', next_station_index)
+
+    current_station_data = {
+        'current_station': current_station,
+        'next_station': next_station,
+    }
+
+    return current_station_data
+
+def send_current_route_data():
+    station_data = update_route()
+    channel_layer = get_channel_layer()
+
+    async_to_sync(channel_layer.group_send)(
+        'route_updates',
+        {
+            'type': 'update_station',
+            'message': station_data,
+        }
+    )
 

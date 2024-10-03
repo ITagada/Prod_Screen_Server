@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBarContainer.innerHTML = '';
 
         // Шаг между контейнерами (расстояние между контейнерами)
-        const containerPadding = 100;
+        const containerPadding = 50;
 
         let currentX = 0;
 
@@ -56,63 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Создание контейнера с именем станции
             const container = document.createElement('div');
             container.classList.add('stop-info');
-
-            const nameContainer = document.createElement('div');
-            nameContainer.classList.add('name-container');
-            nameContainer.innerText = stop.name;
-            container.appendChild(nameContainer);
-
-            const name2Container = document.createElement('div');
-            name2Container.classList.add('name2-container');
-            name2Container.innerText = stop.name2;
-            container.appendChild(name2Container);
-
-            let arrowIcons =[];
-
-            // Добавляем иконки из подмассива transfers.icon_parts, если они есть
-            stop.transfers.forEach(transfer => {
-                transfer.icon_parts.forEach(icon => {
-                    if (icon.symbol === '➪' || icon.symbol === '➫') {
-                        arrowIcons.push(icon);
-                    } else {
-                        // Создаем элемент span для каждой иконки
-                        const iconSpan = document.createElement('span');
-                        iconSpan.style.color = icon.color;  // Задаем цвет иконки
-                        iconSpan.innerText = icon.symbol;   // Добавляем символ иконки
-
-                        // Добавляем иконку к stationContent
-                        nameContainer.appendChild(iconSpan);
-                    }
-                });
-            });
-
-            if (arrowIcons.length === 2) {
-                const combinedIcon = document.createElement('span');
-                combinedIcon.style.position = 'relative';
-
-                const icon1 = document.createElement('span');
-                icon1.style.color = arrowIcons[0].color;
-                icon1.innerText = arrowIcons[0].symbol;
-                combinedIcon.appendChild(icon1);
-
-                const icon2 = document.createElement('span');
-                icon2.style.color = arrowIcons[1].color;
-                icon2.innerText = arrowIcons[1].symbol;
-                icon2.style.position = 'absolute';
-                icon2.style.top = '0';
-                icon2.style.left = '0';
-                combinedIcon.appendChild(icon2);
-
-                nameContainer.appendChild(combinedIcon);
-            } else {
-                arrowIcons.forEach(icon => {
-                    const iconSpan = document.createElement('span');
-                    iconSpan.style.color = icon.color;
-                    iconSpan.innerText = icon.symbol;
-                    nameContainer.appendChild(iconSpan);
-                });
-            }
-
+            container.innerText = stop.name; // Название станции
             container.style.left = `${currentX}px`; // Позиция контейнера по оси X
             progressBarContainer.appendChild(container);
 
@@ -186,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
        for (let i = 0; i < currentStationIndex; i++) {
            const stopInfo = progressBarContainer.querySelectorAll('.stop-info')[i];
-           offsetToCurrentStation -= (stopInfo.offsetWidth + 100)
+           offsetToCurrentStation -= (stopInfo.offsetWidth + 50)
        }
 
        // Получаем текущее смещение

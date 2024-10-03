@@ -132,7 +132,9 @@ def update_route():
     current_station = stations[current_station_index]
     next_station = stations[next_station_index]
 
-    cache.set('current_station_index', next_station_index)
+    cache_timeout = 86400
+
+    cache.set('current_station_index', next_station_index, timeout=cache_timeout)
 
     current_station_data = {
         'current_station': current_station,

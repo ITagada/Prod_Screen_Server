@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Создаем элемент span для каждой иконки
                         const iconSpan = document.createElement('span');
                         iconSpan.style.color = icon.color;  // Задаем цвет иконки
-                        iconSpan.innerText = icon.symbol;   // Добавляем символ иконки
+                        iconSpan.innerText = " " + icon.symbol;   // Добавляем символ иконки
 
                         // Добавляем иконку к stationContent
                         nameContainer.appendChild(iconSpan);
@@ -108,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 arrowIcons.forEach(icon => {
                     const iconSpan = document.createElement('span');
                     iconSpan.style.color = icon.color;
-                    iconSpan.innerText = icon.symbol;
+                    iconSpan.innerText = " " + icon.symbol;
                     nameContainer.appendChild(iconSpan);
                 });
             }

@@ -6,13 +6,16 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class BNTConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        await self.accept()
+
+        bnt_data = get_BNT_data()
+
+        await self.send(text_data=json.dumps(bnt_data))
+
         await self.channel_layer.group_add(
             'route_updates',
             self.channel_name
         )
-        await self.accept()
-        context = get_BNT_data()
-        await self.send(text_data=json.dumps(context))
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(

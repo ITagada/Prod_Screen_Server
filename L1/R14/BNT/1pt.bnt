@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<line name="Большая кольцевая|Bolshaya Koltsevaya" isround="false">
+  <icon>
+    <iconpart color="#80D4C9" symbol="➍" />
+  </icon>
+  <station name="Варшавская|Varshavskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="0" lcode="11" scode="17" crossPlatform="0">
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#918F90" symbol="➪" />
+        <iconpart color="#D96A75" symbol="➫" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Каширская|Kashirskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="16" crossPlatform="1">
+    <transfer name="Каширская|Kashirskaya" isShow="1">
+      <icon>
+        <iconpart color="#4ABD53" symbol="➁" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Кленовый бульвар|Klenoviy Bulvar" side="right" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="0" lcode="11" scode="15" crossPlatform="0">
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+</line>

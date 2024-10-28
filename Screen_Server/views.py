@@ -1,9 +1,10 @@
-import json
+import json, os, base64
 import xml.etree.ElementTree as ET
 from json import JSONDecodeError
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.core.cache import cache
@@ -72,8 +73,8 @@ def get_stop_info(ROOT):
     return route
 
 
-d = get_stop_info(ROOT)
-print(d)
+# d = get_stop_info(ROOT)
+# print(d)
 def index(request):
     global SW, SH
     if request.method == 'POST':
@@ -95,12 +96,15 @@ def get_BNT(request):
 
 def get_BNT_data():
     route = get_stop_info(ROOT)
+    wagons_obj, wagons_obj_active = collect_wagons()
     if route['line']['isround'] == 'true':
         context = {
             'line_name': route['line']['name'],
             'line_name2': route['line']['name2'],
             'line_icons': route['line']['icons'],
             'stops': route['stations'],
+            'wagons': wagons_obj,
+            'wagons_active': wagons_obj_active,
         }
     else:
         context = {
@@ -109,6 +113,8 @@ def get_BNT_data():
             'line_icons': route['line']['icons'],
             'stops': route['stations'],
             'final_stop': route['stations'][-1],
+            'wagons': wagons_obj,
+            'wagons_active': wagons_obj_active,
         }
     return context
 
@@ -155,3 +161,33 @@ def send_current_route_data():
         }
     )
 
+
+def collect_wagons(size=8, side='Left'):
+    wagons_dir = os.path.join(settings.BASE_DIR, 'Wagons/')
+    wagons_obj = []
+    wagons_obj_active = []
+
+    for filename in os.listdir(wagons_dir):
+        for i in range(1, size + 1):
+            if f'Wagon {i} {side}-Side' in filename and 'Acitve' not in filename and filename.endswith('.png'):
+                wagon_path = os.path.join(wagons_dir, filename)
+
+                with open(wagon_path, 'rb') as wagon_file:
+                    encoded_string = base64.b64encode(wagon_file.read())
+                    wagon_obj = {'name': filename, 'encoded_string': encoded_string.decode('utf-8')}
+
+                    wagons_obj.append(wagon_obj)
+
+            elif f'Wagon {i} {side}-Side' in filename and 'Acitve' in filename and filename.endswith('.png'):
+                wagon_path = os.path.join(wagons_dir, filename)
+
+                with open(wagon_path, 'rb') as wagon_file:
+                    encoded_string = base64.b64encode(wagon_file.read())
+                    wagon_obj_active = {'name': filename, 'encoded_string': encoded_string.decode('utf-8')}
+
+                    wagons_obj_active.append(wagon_obj_active)
+
+    wagons_obj_active.sort(key=lambda x: x['name'], reverse=True)
+    wagons_obj.sort(key=lambda x: x['name'], reverse=True)
+
+    return wagons_obj, wagons_obj_active

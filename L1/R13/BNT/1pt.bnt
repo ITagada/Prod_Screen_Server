@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<line name="Большая кольцевая|Bolshaya Koltsevaya" isround="false">
+  <icon>
+    <iconpart color="#80D4C9" symbol="➍" />
+  </icon>
+  <station name="Варшавская|Varshavskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="0" lcode="11" scode="17" crossPlatform="0">
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#918F90" symbol="➪" />
+        <iconpart color="#D96A75" symbol="➫" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Каширская|Kashirskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="16" crossPlatform="1">
+    <transfer name="Каширская|Kashirskaya" isShow="1">
+      <icon>
+        <iconpart color="#4ABD53" symbol="➁" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Кленовый бульвар|Klenoviy Bulvar" side="right" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="0" lcode="11" scode="15" crossPlatform="0">
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Нагатинский Затон|Nagatinskiy Zaton" side="right" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="0" lcode="11" scode="14" crossPlatform="0">
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Печатники|Pechatniki" side="right" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="13" crossPlatform="0">
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#A6D82B" symbol="➌" />
+      </icon>
+    </transfer>
+    <transfer name="Печатники|Pechatniki" isShow="1">
+      <icon>
+        <iconpart color="#EF2A8A" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Текстильщики|Tekstilschiki" side="right" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="12" crossPlatform="0">
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#89339E" symbol="➆" />
+      </icon>
+    </transfer>
+    <transfer name="Текстильщики|Tekstilschiki" isShow="1">
+      <icon>
+        <iconpart color="#EF2A8A" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+  <station name="Нижегородская|Nizhegorodskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="11" crossPlatform="1">
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#F466BA" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#DB1F26" symbol="➓" />
+        <iconpart color="#110B09" symbol="➔" />
+      </icon>
+    </transfer>
+    <transfer name="Нижегородская|Nizhegorodskaya" isShow="1">
+      <icon>
+        <iconpart color="#67B088" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+  </station>
+</line>

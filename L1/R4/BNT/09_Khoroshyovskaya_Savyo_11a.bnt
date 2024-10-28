@@ -1,0 +1,152 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<line name="Большая кольцевая|Bolshaya Koltsevaya" isround="false">
+  <icon>
+    <iconpart color="#80D4C9" symbol="➏" />
+  </icon>
+  <station name="Хорошёвская|Khoroshyovskaya" side="left" up="1" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="1" crossPlatform="0">
+    <transfer name="Полежаевская|Polezhaevskaya" isShow="1">
+      <icon>
+        <iconpart color="#89339E" symbol="➆" />
+      </icon>
+    </transfer>
+    <transfer name="Хорошёвская|Khoroshyovskaya" isShow="1">
+      <icon>
+        <iconpart color="#80D4C9" symbol="➍" />
+      </icon>
+    </transfer>
+    <transfer name="Хорошёво|Khoroshyovo" isShow="1">
+      <icon>
+        <iconpart color="#DB1F26" symbol="➓" />
+        <iconpart color="#110B09" symbol="➔" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+    <arrival>
+      <msg>
+        <text color="#000000">Станция Хорошёвская</text>
+      </msg>
+      <msg>
+        <text color="#000000">Khoroshyovskaya station</text>
+      </msg>
+    </arrival>
+    <departure>
+      <msg>
+        <text color="#000000">Новая станция ЦСКА</text>
+      </msg>
+      <msg>
+        <text color="#000000">Next station is CSKA</text>
+      </msg>
+    </departure>
+  </station>
+  <station name="ЦСКА|CSKA" side="left" up="1" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="2" crossPlatform="0">
+    <transfer name="ЦСКА|CSKA" isShow="1">
+      <icon>
+        <iconpart color="#80D4C9" symbol="➍" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+    <arrival>
+      <msg>
+        <text color="#000000">Станция ЦСКА</text>
+      </msg>
+      <msg>
+        <text color="#000000">CSKA station</text>
+      </msg>
+    </arrival>
+    <departure>
+      <msg>
+        <text color="#000000">Следующая станция Петровский парк</text>
+      </msg>
+      <msg>
+        <text color="#000000"> The next station is Petrovskiy Park</text>
+      </msg>
+    </departure>
+  </station>
+  <station name="Петровский парк|Petrovskiy Park" side="left" up="1" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="3" crossPlatform="0">
+    <transfer name="Динамо|Dinamo" isShow="1">
+      <icon>
+        <iconpart color="#4ABD53" symbol="➁" />
+      </icon>
+    </transfer>
+    <transfer name="Петровский парк|Petrovskiy Park" isShow="1">
+      <icon>
+        <iconpart color="#80D4C9" symbol="➍" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="0">
+      <icon>
+        <iconpart color="#2C75C4" symbol="➥" />
+      </icon>
+    </transfer>
+    <arrival>
+      <msg>
+        <text color="#000000">Станция Петровский парк</text>
+      </msg>
+      <msg>
+        <text color="#000000">Petrovskiy Park station</text>
+      </msg>
+    </arrival>
+    <departure>
+      <msg>
+        <text color="#000000">Новая станция Савёловская</text>
+      </msg>
+      <msg>
+        <text color="#000000">Next station is Savyolovskaya</text>
+      </msg>
+    </departure>
+  </station>
+  <station name="Савёловская|Savyolovskaya" side="left" up="0" skip="0" pos="0" cityexit="unselect" metro-transfer="1" lcode="11" scode="4" crossPlatform="0">
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#9F9F9F" symbol="➋" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#80D4C9" symbol="➍" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#F7A500" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="Савёловская|Savyolovskaya" isShow="1">
+      <icon>
+        <iconpart color="#67B088" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="Савёловский вокзал|Savyolovskiy Vokzal" isShow="1">
+      <icon>
+        <iconpart color="#3F3F3F" symbol="➪" />
+        <iconpart color="#C3193B" symbol="➫" />
+      </icon>
+    </transfer>
+    <transfer name="Аэроэкспресс в Шереметьево|" isShow="1">
+      <icon>
+        <iconpart color="#E02333" symbol="" />
+      </icon>
+    </transfer>
+    <transfer name="|" isShow="1">
+      <icon>
+        <iconpart color="#110B09" symbol="⟃" />
+      </icon>
+    </transfer>
+    <arrival>
+      <msg>
+        <text color="#000000">Станция Савёловская</text>
+      </msg>
+      <msg>
+        <text color="#000000">Savyolovskaya station</text>
+      </msg>
+    </arrival>
+  </station>
+</line>

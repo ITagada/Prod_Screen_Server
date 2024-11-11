@@ -1,5 +1,7 @@
+import configparser
 import json, os, base64
 import xml.etree.ElementTree as ET
+import configparser
 from json import JSONDecodeError
 
 from asgiref.sync import async_to_sync
@@ -9,12 +11,14 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.core.cache import cache
 
-
-TREE = ET.parse('/home/andrew_q/PycharmProjects/TechTask/(bkl_fix)routes/L1/R2/BNT/1pt.bnt')
+file_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'BNT', '1pt.bnt')
+TREE = ET.parse(file_path)
 ROOT = TREE.getroot()
 
 SW = None
 SH = None
+
+CURRENT_STATION_INDEX = 0
 
 def parse_station(station):
     transfers = []
@@ -138,6 +142,11 @@ def update_route():
     current_station = stations[current_station_index]
     next_station = stations[next_station_index]
 
+    current_params = get_station_config(current_station_index + 1)
+    print(f"Station {current_station_index + 1} config params: {current_params}")  # Лог параметров
+
+    current_png = format_image(current_params["PNG"]) if current_params["PNG"] else None
+
     cache_timeout = 86400
 
     cache.set('current_station_index', next_station_index, timeout=cache_timeout)
@@ -145,9 +154,49 @@ def update_route():
     current_station_data = {
         'current_station': current_station,
         'next_station': next_station,
+        'current_png': current_png,
     }
 
     return current_station_data
+
+def get_station_config(station_index, is_reverse=False):
+    folder_name = f"{station_index}o" if is_reverse else str(station_index)
+    station_config_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'Way 1', folder_name, 'config.ini')
+
+    print(f"Checking config file at: {station_config_path}")  # Лог пути к config.ini
+
+    config_data = {}
+    try:
+        with open(station_config_path, 'r') as file:
+            for line in file:
+                # Пропускаем пустые строки
+                line = line.strip()
+                if line:
+                    # Убираем точку с запятой, разделяем по ": " и записываем результат в config_data
+                    key, value = line.replace(';', '').split(': ')
+                    config_data[key.strip()] = value.strip()
+    except FileNotFoundError:
+        print(f"Config file {station_config_path} not found")
+        return {'PNG': None}
+    except Exception as e:
+        print(f"Error reading config file: {e}")
+        return {'PNG': None}
+
+    # Получаем значение PNG, если оно есть
+    png_value = config_data.get('PNG', None)
+    print(f"PNG value for station {station_index}: {png_value}")  # Лог значения PNG
+
+    return {'PNG': png_value}
+
+def format_image(image_name):
+    image_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'PNG', image_name)
+    print(f"Trying to load image from: {image_path}")  # Лог пути к изображению
+    try:
+        with open(image_path, 'rb') as image_file:
+            return base64.b64encode(image_file.read()).decode("utf-8")
+    except FileNotFoundError:
+        print(f'Image file {image_name} not found')
+        return None
 
 def send_current_route_data():
     station_data = update_route()
@@ -191,3 +240,19 @@ def collect_wagons(size=8, side='Left'):
     wagons_obj.sort(key=lambda x: x['name'], reverse=True)
 
     return wagons_obj, wagons_obj_active
+
+# def translate_audio():
+#     import whisper
+#     from deep_translator import GoogleTranslator
+#
+#     model = whisper.load_model("base")
+#
+#     result = model.transcribe("/home/andrew_q/Загрузки/Telegram Desktop/09_59.m4a", language='zh')
+#
+#     if "text" in result and result["text"].strip():
+#         print('Распознанный текст: ', result["text"])
+#         # Перевод текста с исправлением кода языка
+#         translation = GoogleTranslator(source="zh-CN", target="ru").translate(result["text"])
+#         print("Перевод: ", translation)
+#     else:
+#         print("Текст не был распознан.")

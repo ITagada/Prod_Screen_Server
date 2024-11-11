@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.type === 'update_station' && data.message) {
             const currentStation = data.message.current_station;
             const nextStation = data.message.next_station;
+            const currentPng = data.message.current_png;
             updateRoute(currentStation, nextStation, stops);
+            renderPng(currentPng);
         }
     };
 
@@ -431,6 +433,35 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     }
 
+    function renderPng(currentPng) {
+       if (!currentPng) {
+           console.warn("No image data available for current station.");
+           return
+       }
+
+       let schemaContainer = bottomContainer.querySelector('.schema-container');
+       if (!schemaContainer) {
+           schemaContainer = document.createElement('div');
+           schemaContainer.classList.add('schema-container');
+           bottomContainer.appendChild(schemaContainer);
+       }
+
+       // Преобразуем PNG в URL
+       const imageUrl = `data:image/png;base64,${currentPng}`;
+       // Устанавливаем изображение как фон для schema-container
+       schemaContainer.style.backgroundImage = `url(${imageUrl})`;
+       schemaContainer.style.backgroundSize = '100% 100%';    // Подгоняет изображение под размеры контейнера, сохраняя пропорции
+       schemaContainer.style.backgroundPosition = 'center'; // Центрирует изображение
+       schemaContainer.style.backgroundRepeat = 'no-repeat'; // Не повторяет изображение
+
+       // Задаем стили для schema-container, чтобы он занимал нужное пространство в bottom-container
+       schemaContainer.style.position = 'absolute';
+       schemaContainer.style.top = '1%';
+       schemaContainer.style.left = '1%';
+       schemaContainer.style.width = '99%';
+       schemaContainer.style.height = '99%';
+       schemaContainer.style.zIndex = '-1';
+    }
 
     setTimeout(() => {
         topContainer.style.transform = 'translateY(0)';

@@ -1,7 +1,6 @@
 import configparser
 import json, os, base64
 import xml.etree.ElementTree as ET
-import configparser
 from json import JSONDecodeError
 
 from asgiref.sync import async_to_sync
@@ -19,6 +18,17 @@ SW = None
 SH = None
 
 CURRENT_STATION_INDEX = 0
+
+class Client:
+    def __init__(self, ip_address):
+        self.ip_address = ip_address
+        self.wagon_number, self.side = self._determine_parametrs()
+
+    def _determine_parametrs(self):
+        last_octet = int(self.ip_address.split('.')[-1])
+        wagon_number = last_octet // 10
+        side = 'Left' if last_octet % 2 == 0 else 'Right'
+        return wagon_number, side
 
 def parse_station(station):
     transfers = []
@@ -100,7 +110,7 @@ def get_BNT(request):
 
 def get_BNT_data():
     route = get_stop_info(ROOT)
-    wagons_obj, wagons_obj_active = collect_wagons()
+    wagons_obj = collect_wagons()
     if route['line']['isround'] == 'true':
         context = {
             'line_name': route['line']['name'],
@@ -108,7 +118,6 @@ def get_BNT_data():
             'line_icons': route['line']['icons'],
             'stops': route['stations'],
             'wagons': wagons_obj,
-            'wagons_active': wagons_obj_active,
         }
     else:
         context = {
@@ -118,7 +127,6 @@ def get_BNT_data():
             'stops': route['stations'],
             'final_stop': route['stations'][-1],
             'wagons': wagons_obj,
-            'wagons_active': wagons_obj_active,
         }
     return context
 
@@ -143,7 +151,6 @@ def update_route():
     next_station = stations[next_station_index]
 
     current_params = get_station_config(current_station_index + 1)
-    print(f"Station {current_station_index + 1} config params: {current_params}")  # Лог параметров
 
     current_png = format_image(current_params["PNG"]) if current_params["PNG"] else None
 
@@ -163,8 +170,6 @@ def get_station_config(station_index, is_reverse=False):
     folder_name = f"{station_index}o" if is_reverse else str(station_index)
     station_config_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'Way 1', folder_name, 'config.ini')
 
-    print(f"Checking config file at: {station_config_path}")  # Лог пути к config.ini
-
     config_data = {}
     try:
         with open(station_config_path, 'r') as file:
@@ -176,26 +181,19 @@ def get_station_config(station_index, is_reverse=False):
                     key, value = line.replace(';', '').split(': ')
                     config_data[key.strip()] = value.strip()
     except FileNotFoundError:
-        print(f"Config file {station_config_path} not found")
-        return {'PNG': None}
-    except Exception as e:
-        print(f"Error reading config file: {e}")
         return {'PNG': None}
 
     # Получаем значение PNG, если оно есть
     png_value = config_data.get('PNG', None)
-    print(f"PNG value for station {station_index}: {png_value}")  # Лог значения PNG
 
     return {'PNG': png_value}
 
 def format_image(image_name):
     image_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'PNG', image_name)
-    print(f"Trying to load image from: {image_path}")  # Лог пути к изображению
     try:
         with open(image_path, 'rb') as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
     except FileNotFoundError:
-        print(f'Image file {image_name} not found')
         return None
 
 def send_current_route_data():
@@ -211,14 +209,14 @@ def send_current_route_data():
     )
 
 
-def collect_wagons(size=8, side='Left'):
+def collect_wagons(size=8, side='Left', current_wagon = 1):
     wagons_dir = os.path.join(settings.BASE_DIR, 'Wagons/')
     wagons_obj = []
     wagons_obj_active = []
 
     for filename in os.listdir(wagons_dir):
         for i in range(1, size + 1):
-            if f'Wagon {i} {side}-Side' in filename and 'Acitve' not in filename and filename.endswith('.png'):
+            if f'Wagon {i} {side}-Side' in filename and 'Acitve' not in filename and filename.endswith('.png') and i != current_wagon:
                 wagon_path = os.path.join(wagons_dir, filename)
 
                 with open(wagon_path, 'rb') as wagon_file:
@@ -227,19 +225,18 @@ def collect_wagons(size=8, side='Left'):
 
                     wagons_obj.append(wagon_obj)
 
-            elif f'Wagon {i} {side}-Side' in filename and 'Acitve' in filename and filename.endswith('.png'):
+            elif f'Wagon {i} {side}-Side' in filename and 'Acitve' in filename and filename.endswith('.png') and i == current_wagon:
                 wagon_path = os.path.join(wagons_dir, filename)
 
                 with open(wagon_path, 'rb') as wagon_file:
                     encoded_string = base64.b64encode(wagon_file.read())
-                    wagon_obj_active = {'name': filename, 'encoded_string': encoded_string.decode('utf-8')}
+                    wagon_obj = {'name': filename, 'encoded_string': encoded_string.decode('utf-8')}
 
-                    wagons_obj_active.append(wagon_obj_active)
+                    wagons_obj.append(wagon_obj)
 
-    wagons_obj_active.sort(key=lambda x: x['name'], reverse=True)
     wagons_obj.sort(key=lambda x: x['name'], reverse=True)
 
-    return wagons_obj, wagons_obj_active
+    return wagons_obj
 
 # def translate_audio():
 #     import whisper

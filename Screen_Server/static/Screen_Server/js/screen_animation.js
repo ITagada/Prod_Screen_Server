@@ -9,43 +9,58 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeContainer = document.getElementById('time-container');
     const temperatureContainer = document.getElementById('temperature-container');
     const lineContainer = document.getElementById('line-container');
-    let previousNextStationWidth = null;
     let isVisible = true;
-    let stops = [];
-    let lineColor = null;
 
 
     const socket = new WebSocket('ws://127.0.0.1:8000/ws/bnt/');
 
-    socket.onopen = function() {
-        // console.log('WebSocket connection established');
-        // socket.send(JSON.stringify({action: 'get_stops'}));
-    };
+    let wagons = null;
+    let side = null;
+    let stops = null
+    let lineColor = null;
+
+    socket.onopen = function() {};
 
     socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        const wagons = data.wagons;
-        console.log('Opened data: ', data);
+        const packege = JSON.parse(event.data);
 
-        if (wagons && wagons.length > 0) {
-            renderWagons(wagons);
+        if (packege.type === 'connection_data') {
+            const data = packege.data;
+
+            if (!wagons && !side) {
+                wagons = data.wagons;
+                side = data.side;
+
+                console.log('Initial data: ', data);
+                console.log('Line data: ', data.stops);
+                console.log('Wagons: ', wagons);
+                console.log('Side: ', side);
+
+                if (wagons && wagons.length > 0) {
+                    renderWagons(wagons);
+                }
+                if (data.stops && data.line_icons.length > 0) {
+                    stops = data.stops;
+                    lineColor = data.line_icons[0].color;
+                    const lineIcon = data.line_icons[0].symbol;
+                    const lineName = data.line_name;
+                    renderLine(lineName, lineIcon, lineColor);
+                    renderStops(stops, lineColor);
+                }
+            }
         }
 
-        if (data.stops && data.line_icons.length > 0) {
-            stops = data.stops;
-            lineColor = data.line_icons[0].color;
-            const lineIkon = data.line_icons[0].symbol;
-            const lineName = data.line_name;
-            renderLine(lineName, lineIkon, lineColor);
-            renderStops(stops, lineColor);
-        }
+        if (packege.type === 'update_station') {
+            const stationData = packege.message;
 
-        if (data.type === 'update_station' && data.message) {
-            const currentStation = data.message.current_station;
-            const nextStation = data.message.next_station;
-            const currentPng = data.message.current_png;
-            updateRoute(currentStation, nextStation, stops);
-            renderPng(currentPng);
+            if (stationData) {
+                const currentStation = stationData.current_station;
+                const nextStation = stationData.next_station;
+                const currentPng = stationData.current_png;
+
+                updateRoute(currentStation, nextStation, stops);
+                renderPng(currentPng);
+            }
         }
     };
 
@@ -456,10 +471,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
        // Задаем стили для schema-container, чтобы он занимал нужное пространство в bottom-container
        schemaContainer.style.position = 'absolute';
-       schemaContainer.style.top = '1%';
-       schemaContainer.style.left = '1%';
-       schemaContainer.style.width = '99%';
-       schemaContainer.style.height = '99%';
+       schemaContainer.style.top = '0';
+       schemaContainer.style.left = '0';
+       schemaContainer.style.width = '100%';
+       schemaContainer.style.height = '100%';
        schemaContainer.style.zIndex = '-1';
     }
 

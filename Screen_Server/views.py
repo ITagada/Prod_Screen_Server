@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from json import JSONDecodeError
 
 from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
+from channels.layers import get_channel_layer, channel_layers
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
@@ -19,6 +19,8 @@ SH = None
 
 CURRENT_STATION_INDEX = 0
 
+CLIENTS_IP = []
+
 class Client:
     def __init__(self, ip_address):
         self.ip_address = ip_address
@@ -29,6 +31,14 @@ class Client:
         wagon_number = last_octet // 10
         side = 'Left' if last_octet % 2 == 0 else 'Right'
         return wagon_number, side
+
+    def get_client_attr(self):
+        return {
+            'ip_address': self.ip_address,
+            'wagon_number': self.wagon_number,
+            'side': self.side,
+        }
+
 
 def parse_station(station):
     transfers = []
@@ -106,17 +116,30 @@ def index(request):
     return redirect('BNT')
 
 def get_BNT(request):
+    ip_address = get_clietnt_ip(request)
+    if ip_address not in CLIENTS_IP:
+        CLIENTS_IP.append(ip_address)
     return render(request, 'Screen_Server/BNT.html')
 
-def get_BNT_data():
+def get_clietnt_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+def get_BNT_data(client_ip):
     route = get_stop_info(ROOT)
-    wagons_obj = collect_wagons()
+    client = Client(client_ip)
+    wagons_obj = collect_wagons(size=8, side=client.side, current_wagon=client.wagon_number)
     if route['line']['isround'] == 'true':
         context = {
             'line_name': route['line']['name'],
             'line_name2': route['line']['name2'],
             'line_icons': route['line']['icons'],
             'stops': route['stations'],
+            'side': client.side,
             'wagons': wagons_obj,
         }
     else:
@@ -126,8 +149,10 @@ def get_BNT_data():
             'line_icons': route['line']['icons'],
             'stops': route['stations'],
             'final_stop': route['stations'][-1],
+            'side': client.side,
             'wagons': wagons_obj,
         }
+
     return context
 
 def update_route():
@@ -212,7 +237,6 @@ def send_current_route_data():
 def collect_wagons(size=8, side='Left', current_wagon = 1):
     wagons_dir = os.path.join(settings.BASE_DIR, 'Wagons/')
     wagons_obj = []
-    wagons_obj_active = []
 
     for filename in os.listdir(wagons_dir):
         for i in range(1, size + 1):
@@ -234,7 +258,7 @@ def collect_wagons(size=8, side='Left', current_wagon = 1):
 
                     wagons_obj.append(wagon_obj)
 
-    wagons_obj.sort(key=lambda x: x['name'], reverse=True)
+    wagons_obj.sort(key=lambda x: x['name'])
 
     return wagons_obj
 

@@ -1,52 +1,80 @@
-import socket
-from moscow import PacketFactory
-from metro import *
+from datetime import time
+
+from scapy.all import sniff
+from scapy.layers.inet import UDP
+import threading
+import logging
+
+from scapy.packet import Raw
+
+from .metro import *
+from .moscow import SessionProtocolParser
 
 
-def process_moscow_data(data: bytes):
+logging.basicConfig(level=logging.DEBUG)
+
+
+# Функция для запуска UDP-сервера
+def packet_callback(packet):
+    """
+    Обрабатывает входящий сетевой пакет, преобразует его в HEX-строку
+    и парсит с помощью SessionProtocolParser.
+    """
     try:
-        # Создаем пакет на основе данных
-        packet = PacketFactory.create_packet(data)
+        if packet.haslayer(UDP) and packet[UDP].sport == 29789:
+            if Raw in packet:
+                if isinstance(packet[Raw].load, bytes):
+                    raw_data = packet[Raw].load
+                    hex_data = raw_data.hex()
+                    logging.info(f"Получена HEX-строка: {hex_data}")
 
-        # Парсим данные из пакета
-        parsed_data = packet.parse()
+                    # Создаём объект SessionProtocolParser
+                    parser = SessionProtocolParser(hex_data)
+                    try:
+                        # Вызываем метод парсинга пакета
+                        parsed_packet = parser.parse_packet()
 
-        # Логика обработки данных (например, печать или обработка)
-        print(f"Обработанные данные: {parsed_data}")
-
-        # Вы можете вернуть ответ клиенту, если нужно
-        response = b"Данные обработаны успешно"
-        return response
+                        # Логируем результаты
+                        logging.info(f"Результат парсинга: {parsed_packet}")
+                    except ValueError as e:
+                        logging.error(f"Ошибка при парсинге пакета: {e}")
+                else:
+                    logging.error("Полезная нагрузка не является байтовым объектом.")
+            else:
+                logging.info("Пакет не содержит слоя Raw (полезной нагрузки).")
     except Exception as e:
-        print(f"Ошибка при обработке данных Moscow: {e}")
-        return b"Ошибка обработки данных"
+        logging.error(f"Ошибка при обработке пакета: {e}")
 
-def start_server():
-    # Указываем порт для moscow.py
-    MOSCOW_PORT = 29789
-    # Указываем порт для metro.py (если будет нужен)
-    METRO_PORT = 29788  # Для примера
 
-    # Создаем сокет
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_socket.bind(("0.0.0.0", MOSCOW_PORT))
-
-    print(f"Сервер запущен и слушает порт {MOSCOW_PORT}")
-
+# Функция для запуска прослушивания
+def start_sniffing():
     while True:
-        # Принимаем данные
-        data, address = server_socket.recvfrom(1024)
-        print(f"Получены данные: {data} от {address}")
+        try:
+            logging.info("Запуск sniff...")
+            sniff(prn=packet_callback, iface="enp6s0", filter="udp and port 29789", store=0)
+        except Exception as e:
+            logging.error(f"Ошибка в sniff: {e}")
+            logging.info("Перезапуск sniff через 5 секунд...")
+            time.sleep(5)
 
-        # Логика обработки данных
-        if server_socket.getsockname()[1] == MOSCOW_PORT:
-            response = process_moscow_data(data)
-        else:
-            response = process_metro_data(data)
+# Запуск прослушивания в отдельном потоке
+def start_sniffing_thread():
+    def sniffing_wrapper():
+        while True:
+            try:
+                start_sniffing()
+            except Exception as e:
+                logging.error(f"Ошибка в потоке sniff: {e}")
+                time.sleep(5)  # Перезапуск через 5 секунд
 
-        # Отправляем ответ (если нужно)
-        if response:
-            server_socket.sendto(response, address)
+    sniff_thread = threading.Thread(target=sniffing_wrapper)
+    sniff_thread.daemon = True
+    sniff_thread.start()
 
-if __name__ == "__main__":
-    start_server()
+# Ваша вьюха Django
+from django.http import HttpResponse
+
+def start_udp_server(request):
+    # logging.info("Запуск прослушивания UDP пакетов на порту 29789...")
+    start_sniffing_thread()
+    return HttpResponse("Прослушивание UDP пакетов запущено в фоне.")

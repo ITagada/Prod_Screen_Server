@@ -1,5 +1,6 @@
 import struct
 import logging
+import binascii
 
 from typing import List, Tuple, Dict, Any
 
@@ -78,14 +79,14 @@ class SessionProtocolParser(ByteParserBase):
         if marker.lower() != 'ffa00010':
             logging.error(f"Неверный маркер: {marker}")
             raise ValueError(f"Invalid marker: {marker}")
-        logging.info(f"Маркер корректен: {marker}")
+        # logging.info(f"Маркер корректен: {marker}")
         self.offset += 8
-        logging.info(f"Смещение после валидации маркера = {self.offset}")
+        # logging.info(f"Смещение после валидации маркера = {self.offset}")
 
     def parse_field(self, field_name: str, data_type: str, validation_func=None):
         value = self.read(data_type)
-        logging.info(f"{field_name}: {value}")
-        logging.info(f"Смещение после чтения {field_name} = {self.offset}")
+        # logging.info(f"{field_name}: {value}")
+        # logging.info(f"Смещение после чтения {field_name} = {self.offset}")
 
         if validation_func:
             validation_func(value)
@@ -95,32 +96,75 @@ class SessionProtocolParser(ByteParserBase):
     def parse_ip(self):
         ip_bytes = [self.read("byte") for _ in range(4)]
         ip_address = ".".join(str(byte) for byte in ip_bytes)
-        logging.info(f"Расшифрованный IP адрес: {ip_address}")
+        # logging.info(f"Расшифрованный IP адрес: {ip_address}")
         return ip_address
 
+    def calculate_crc(self, hex_data: str) -> int:
+        data_bytes = bytes.fromhex(hex_data)
+        crc = 0xFFFF
+        for byte in data_bytes:
+            crc ^= byte << 8
+            for _ in range(8):
+                if crc & 0x8000:
+                    crc = (crc << 1) ^ 0x1021
+                else:
+                    crc <<= 1
+            crc &= 0xFFFF
+        return crc
+
     def parse_packet(self):
-        logging.info('Начинаем парсинг пакета...')
-        header = {
-            'receiver_ip': self.parse_ip(),
-            'sender_ip': self.parse_ip(),
-            'packet_id': self.parse_field('ID пакета', 'int16', lambda x: self.validate_packet_id(x)),
-            'major_version': self.parse_field("Мажорная версия протокола", "int"),
-            'minor_version': self.parse_field("Минорная версия протокола", "int"),
-            'size': self.parse_field("Размер передаваемых данных", "int16"),
-            'cs': self.parse_field("Контрольная сумма", "int16"),
-        }
+        # logging.info('Начинаем парсинг пакета...')
+        try:
+            header = {
+                'receiver_ip': self.parse_ip(),
+                'sender_ip': self.parse_ip(),
+                'packet_id': self.parse_field('ID пакета', 'int16', lambda x: self.validate_packet_id(x)),
+                'major_version': self.parse_field("Мажорная версия протокола", "int"),
+                'minor_version': self.parse_field("Минорная версия протокола", "int"),
+                'size': self.parse_field("Размер передаваемых данных", "int16"),
+                'cs': self.parse_field("Контрольная сумма", "int16"),
+            }
 
-        payload = self.data[self.offset:]
-        logging.info(f"Полезная нагрузка: {payload}")
+            original_cs = header['cs']
 
-        if header['size'] > 0:
-            payload_parser = PacketFactory.create_packet(payload)
-            payload = payload_parser.parse_packet()
+            cs_offset = self.offset - 4
+            zeroed_data = self.data[:cs_offset] + "0000" + self.data[cs_offset + 4:]
 
-        return {
-            'header': header,
-            'payload': payload,
-        }
+            recalculated_crc = self.calculate_crc(zeroed_data)
+
+            logging.info(f"Оригинальный CRC: {original_cs}")
+            logging.info(f"Пересчитанный CRC: {recalculated_crc}")
+
+            if recalculated_crc != original_cs:
+                logging.error("Контрольная сумма пакета не совпадает. Пакет будет пропущен")
+                return {
+                    'header': header,
+                    'payload': None,
+                    'status': 'error',
+                    'error_message': 'Invalid CRC',
+                }
+
+            payload = self.data[self.offset:]
+            # logging.info(f"Полезная нагрузка: {payload}")
+
+            if header['size'] > 0:
+                payload_parser = PacketFactory.create_packet(payload)
+                payload = payload_parser.parse_packet()
+
+            return {
+                'header': header,
+                'payload': payload,
+                'status': 'success',
+            }
+
+        except Exception as e:
+            logging.error(f"Ошибка при парсинге пакета: {e}")
+            return {
+                'header': None,
+                'payload': None,
+                'status': 'error',
+                'error_message': str(e),
+            }
 
     def validate_packet_id(self, packet_id):
         if packet_id == 0:
@@ -243,5 +287,5 @@ class PacketFactory:
         if not packet_calss:
             raise ValueError(f"Invalid packet id {packet_id}")
 
-        logging.info(f"Данные класса PacketFactory: {packet_calss}")
+        # logging.info(f"Данные класса PacketFactory: {packet_calss}")
         return packet_calss(data[2:])

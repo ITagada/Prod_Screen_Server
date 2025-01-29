@@ -25,8 +25,9 @@ def packet_callback(packet):
             if Raw in packet:
                 if isinstance(packet[Raw].load, bytes):
                     raw_data = packet[Raw].load
+                    # logging.info(f"Изначальные данные: {raw_data}")
                     hex_data = raw_data.hex()
-                    logging.info(f"Получена HEX-строка: {hex_data}")
+                    # logging.info(f"Получена HEX-строка: {hex_data}")
 
                     # Создаём объект SessionProtocolParser
                     parser = SessionProtocolParser(hex_data)

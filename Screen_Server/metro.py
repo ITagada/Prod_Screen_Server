@@ -98,21 +98,21 @@ def get_stop_info(ROOT):
 
     return route
 
-def index(request):
-    global SW, SH
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            SW = data.get('screen_width')
-            SH = data.get('screen_height')
-
-            if SW == 1920 and SH == 1080:
-                return JsonResponse({'redirect_url': 'BNT'})
-            else:
-                raise Exception
-        except JSONDecodeError:
-            return JsonResponse({'status': 'fail', 'message': 'Invalid JSON'}, status=400)
-    return redirect('BNT')
+# def index(request):
+#     global SW, SH
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             SW = data.get('screen_width')
+#             SH = data.get('screen_height')
+#
+#             if SW == 1920 and SH == 1080:
+#                 return JsonResponse({'redirect_url': 'BNT'})
+#             else:
+#                 raise Exception
+#         except JSONDecodeError:
+#             return JsonResponse({'status': 'fail', 'message': 'Invalid JSON'}, status=400)
+#     return redirect('BNT')
 
 def get_BNT(request):
     ip_address = get_clietnt_ip(request)

@@ -1,18 +1,27 @@
-from datetime import time
-
-from scapy.all import sniff
-from scapy.layers.inet import UDP
 import threading
 import logging
+import asyncio
 
+from datetime import time
+
+from django.http import HttpResponseRedirect
+from django.shortcuts import render
+
+from channels.layers import get_channel_layer
+from mpmath import monitor
+from scapy.all import sniff
+from scapy.layers.inet import UDP
 from scapy.packet import Raw
 
 from .metro import *
 from .moscow import SessionProtocolParser
+from .consumers_moscow import MoscowConsumer
 
 
 logging.basicConfig(level=logging.DEBUG)
 
+
+LAST_PACKET_DATA = None
 
 # Функция для запуска UDP-сервера
 def packet_callback(packet):
@@ -20,62 +29,50 @@ def packet_callback(packet):
     Обрабатывает входящий сетевой пакет, преобразует его в HEX-строку
     и парсит с помощью SessionProtocolParser.
     """
+    global LAST_PACKET_DATA
     try:
-        if packet.haslayer(UDP) and packet[UDP].sport == 29789:
-            if Raw in packet:
-                if isinstance(packet[Raw].load, bytes):
-                    raw_data = packet[Raw].load
-                    # logging.info(f"Изначальные данные: {raw_data}")
-                    hex_data = raw_data.hex()
-                    # logging.info(f"Получена HEX-строка: {hex_data}")
-
-                    # Создаём объект SessionProtocolParser
-                    parser = SessionProtocolParser(hex_data)
-                    try:
-                        # Вызываем метод парсинга пакета
-                        parsed_packet = parser.parse_packet()
-
-                        # Логируем результаты
-                        logging.info(f"Результат парсинга: {parsed_packet}")
-                    except ValueError as e:
-                        logging.error(f"Ошибка при парсинге пакета: {e}")
-                else:
-                    logging.error("Полезная нагрузка не является байтовым объектом.")
-            else:
-                logging.info("Пакет не содержит слоя Raw (полезной нагрузки).")
+        if packet.haslayer(UDP):
+            port = packet[UDP].sport
+            if port == 29789:
+                if Raw in packet:
+                    if isinstance(packet[Raw].load, bytes):
+                        raw_data = packet[Raw].load
+                        LAST_PACKET_DATA = raw_data.hex()
+                logging.info(f"Получен пакет с порта {port}, подключаем к MoscowConsumer")
+                asyncio.run(send_redirect('/moscowBNT/'))
+            elif port == 29788:
+                logging.info(f"Получен пакет с порта {port}, подключаем к MoscowConsumer")
     except Exception as e:
         logging.error(f"Ошибка при обработке пакета: {e}")
 
+async def send_redirect(url):
+    channel_layer = get_channel_layer()
+    await channel_layer.group_send(
+        'redirect_group',
+        {
+            'type': 'redirect_clients',
+            'url': url,
+        }
+    )
 
-# Функция для запуска прослушивания
 def start_sniffing():
-    while True:
-        try:
-            logging.info("Запуск sniff...")
-            sniff(prn=packet_callback, iface="enp6s0", filter="udp and port 29789", store=0)
-        except Exception as e:
-            logging.error(f"Ошибка в sniff: {e}")
-            logging.info("Перезапуск sniff через 5 секунд...")
-            time.sleep(5)
+    sniff(prn=packet_callback, iface="enp6s0", filter='udp and port 29789', store=0, monitor=True)
 
-# Запуск прослушивания в отдельном потоке
 def start_sniffing_thread():
-    def sniffing_wrapper():
-        while True:
-            try:
-                start_sniffing()
-            except Exception as e:
-                logging.error(f"Ошибка в потоке sniff: {e}")
-                time.sleep(5)  # Перезапуск через 5 секунд
-
-    sniff_thread = threading.Thread(target=sniffing_wrapper)
-    sniff_thread.daemon = True
+    sniff_thread = threading.Thread(target=start_sniffing, daemon=True)
     sniff_thread.start()
 
-# Ваша вьюха Django
-from django.http import HttpResponse
-
-def start_udp_server(request):
-    # logging.info("Запуск прослушивания UDP пакетов на порту 29789...")
+def index(request):
     start_sniffing_thread()
-    return HttpResponse("Прослушивание UDP пакетов запущено в фоне.")
+    return render(request, 'Screen_Server/index.html')
+
+def moscowBNT(request):
+    global LAST_PACKET_DATA
+    try:
+        hex_data = LAST_PACKET_DATA if LAST_PACKET_DATA else ''
+        parser = SessionProtocolParser(hex_data)
+        parsed_data = parser.parse_packet() or {}
+    except Exception as e:
+        logging.error(f"Error parsing packet: {e}")
+        parsed_data = {}
+    return render(request, 'Screen_Server/moscowBNT.html', {'data': parsed_data})

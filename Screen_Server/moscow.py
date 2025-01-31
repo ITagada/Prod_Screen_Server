@@ -1,7 +1,10 @@
 import struct
 import logging
 import binascii
+import json
+import asyncio
 
+from channels.layers import get_channel_layer
 from typing import List, Tuple, Dict, Any
 
 
@@ -132,8 +135,8 @@ class SessionProtocolParser(ByteParserBase):
 
             recalculated_crc = self.calculate_crc(zeroed_data)
 
-            logging.info(f"Оригинальный CRC: {original_cs}")
-            logging.info(f"Пересчитанный CRC: {recalculated_crc}")
+            # logging.info(f"Оригинальный CRC: {original_cs}")
+            # logging.info(f"Пересчитанный CRC: {recalculated_crc}")
 
             if recalculated_crc != original_cs:
                 logging.error("Контрольная сумма пакета не совпадает. Пакет будет пропущен")
@@ -151,11 +154,13 @@ class SessionProtocolParser(ByteParserBase):
                 payload_parser = PacketFactory.create_packet(payload)
                 payload = payload_parser.parse_packet()
 
-            return {
+            parsed_data = {
                 'header': header,
                 'payload': payload,
                 'status': 'success',
             }
+
+            return parsed_data
 
         except Exception as e:
             logging.error(f"Ошибка при парсинге пакета: {e}")

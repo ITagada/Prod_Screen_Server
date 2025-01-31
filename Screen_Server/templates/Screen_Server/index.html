@@ -6,11 +6,21 @@
     <meta name="viewport"
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <script src="{% static 'Screen_Server/js/get_screen_info_script.js' %}"></script>
-    <title>Index</title>
+    <title>Ожидание данных...</title>
 </head>
 <body>
     <form method="POST">{% csrf_token %}</form>
-    <h1>Let's Try</h1>
+    <h1>Ожидание подключения...</h1>
+
+    <script>
+        const socket = new WebSocket("ws://127.0.0.1:8000/ws/redirect/");
+
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === "redirect") {
+                window.location.href = data.url;  // Перенаправляем клиента
+            }
+        };
+    </script>
 </body>
 </html>

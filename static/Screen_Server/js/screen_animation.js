@@ -5,31 +5,62 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBarContainer = document.getElementById('progress-bar-container');
     const progressLine = document.getElementById('progress-line');
     const trigger = document.getElementById('trigger');
+    const speedContainer = document.getElementById('speed-container');
+    const timeContainer = document.getElementById('time-container');
+    const temperatureContainer = document.getElementById('temperature-container');
+    const lineContainer = document.getElementById('line-container');
     let isVisible = true;
-    let stops = [];
-    let lineColor = null;
 
 
     const socket = new WebSocket('ws://127.0.0.1:8000/ws/bnt/');
 
-    socket.onopen = function() {
-        // console.log('WebSocket connection established');
-        // socket.send(JSON.stringify({action: 'get_stops'}));
-    };
+    let wagons = null;
+    let side = null;
+    let stops = null
+    let lineColor = null;
+
+    socket.onopen = function() {};
 
     socket.onmessage = function(event) {
-        const data = JSON.parse(event.data);
-        console.log('Opened data: ', data);
+        const packege = JSON.parse(event.data);
 
-        if (data.stops && data.line_icons.length > 0) {
-            stops = data.stops;
-            lineColor = data.line_icons[0].color;
-            renderStops(stops, lineColor);
+        if (packege.type === 'connection_data') {
+            const data = packege.data;
+
+            if (!wagons && !side) {
+                wagons = data.wagons;
+                side = data.side;
+
+                console.log('Initial data: ', data);
+                console.log('Line data: ', data.stops);
+                console.log('Wagons: ', wagons);
+                console.log('Side: ', side);
+
+                if (wagons && wagons.length > 0) {
+                    renderWagons(wagons);
+                }
+                if (data.stops && data.line_icons.length > 0) {
+                    stops = data.stops;
+                    lineColor = data.line_icons[0].color;
+                    const lineIcon = data.line_icons[0].symbol;
+                    const lineName = data.line_name;
+                    renderLine(lineName, lineIcon, lineColor);
+                    renderStops(stops, lineColor);
+                }
+            }
         }
 
-        if (data.type === 'update_station' && data.message) {
-            const currentStation = data.message.current_station;
-            updateRoute(currentStation, stops);
+        if (packege.type === 'update_station') {
+            const stationData = packege.message;
+
+            if (stationData) {
+                const currentStation = stationData.current_station;
+                const nextStation = stationData.next_station;
+                const currentPng = stationData.current_png;
+
+                updateRoute(currentStation, nextStation, stops);
+                renderPng(currentPng);
+            }
         }
     };
 
@@ -41,142 +72,411 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('WebSocket connection closed');
     };
 
+    function renderLine(lineName, lineIcon, lineColor) {
+        lineContainer.innerHTML = '';
 
-    function renderStops(stops, lineColor) {
-        // Очистка progressBarContainer перед отрисовкой
+        const lineIconElement = document.createElement('span');
+        lineIconElement.innerText = lineIcon;
+        lineIconElement.style.color = lineColor;
+        lineContainer.appendChild(lineIconElement);
+
+        const lineNameContainer = document.createElement('div');
+        lineNameContainer.innerText = lineName;
+        lineContainer.appendChild(lineNameContainer);
+    }
+
+    function renderStops(stops, lineColor, currentStation = null) {
         progressBarContainer.innerHTML = '';
 
-        // Шаг между контейнерами (расстояние между контейнерами)
-        const containerPadding = 50;
+        const currentStationIndex = currentStation ? stops.findIndex(stop => stop.name === currentStation.name) : -1;
 
-        let currentX = 0;
+        // Шаг между контейнерами (расстояние между контейнерами)
+        const containerPadding = 100;
+
+        let currentX = 100;
 
         // Добавляем контейнеры с именами станций и точки для каждой остановки
-        stops.forEach((stop, index) => {
+        stops.forEach((stop, stopIndex) => {
+
             // Создание контейнера с именем станции
-            const container = document.createElement('div');
-            container.classList.add('stop-info');
-            container.innerText = stop.name; // Название станции
-            container.style.left = `${currentX}px`; // Позиция контейнера по оси X
+            const container = progressBarContainer.querySelector(`.stop-info[data-stop-index="${stopIndex}"]`) || createStopContainer(stop, currentStationIndex, stopIndex);
+
+            container.style.left = `${currentX}px`;
+
+            // if (currentStation && stop.name === currentStation.name) {
+            //     container.classList.add('highlight');
+            // } else {
+            //     container.classList.remove('highlight');
+            // }
+
             progressBarContainer.appendChild(container);
 
-            // Создание точки
-            const point = document.createElement('div');
+            const point =
+                progressBarContainer.querySelector(`.stop-point[data-stop-index="${stopIndex}"]`) ||
+                progressBarContainer.querySelector(`.stop-dot[data-stop-index="${stopIndex}"]`) ||
+                createStopPoint(stop, lineColor, currentX, stopIndex);
 
-            const hasTransfer = stop.transfers.some(transfer => transfer.transfer_name !== '');
-            if (hasTransfer) {
-                point.classList.add('stop-point');
-                point.style.left = `${currentX}px`; // Позиция точки по оси X (та же, что и у контейнера)
-                point.style.borderColor = lineColor;
-                progressBarContainer.appendChild(point);
-            } else {
-                point.classList.add('stop-dot');
-                point.style.left = `${currentX}px`;
-                point.style.backgroundColor = lineColor;
-                progressBarContainer.appendChild(point);
-            }
+            point.style.left = `${currentX}px`;
 
+            // if (currentStation && stop.name === currentStation.name) {
+            //     point.classList.add('highlight');
+            // } else {
+            //     point.classList.remove('highlight');
+            // }
+
+            progressBarContainer.appendChild(point);
+
+            stop.left = currentX;
             currentX += container.offsetWidth + containerPadding;
         });
 
-        // Устанавливаем ширину progressBarContainer
         progressBarContainer.style.width = `${currentX}px`;
-
-        drawLine(stops, lineColor);
+        drawLine(stops[0].left, stops[stops.length - 1].left, lineColor);
     }
 
-   function drawLine(stops, lineColor) {
-        if (stops.length === 0) {
+    function drawLine(startX, finishX, lineColor) {
+        if (finishX - startX <= 0) {
             progressLine.style.width = '0';
+            console.warn('Have not points to start and finish');
             return;
         }
 
-        const allContainers = document.querySelectorAll('.stop-info');
-        const searchStart = stops[0].name;
-        const searchFinish = stops[stops.length - 1].name;
-
-        const startContainer = Array.from(allContainers).find(container =>
-            container.textContent.includes(searchStart)
-        );
-
-        const finishContainer = Array.from(allContainers).find(container =>
-            container.textContent.includes(searchFinish)
-        );
-
-        const startRect = startContainer.getBoundingClientRect();
-        const startX = startRect.left + window.scrollX + 2;
-
-        const finishRect = finishContainer.getBoundingClientRect();
-        const finishX = finishRect.left + window.scrollX + 2;
-
-        const lineLenght = finishX - startX;
-        progressLine.style.width = `${lineLenght}px`;
+        const lineLength = finishX - startX;
+        progressLine.style.width = `${lineLength}px`;
         progressLine.style.left = `${startX}px`;
         progressLine.style.backgroundColor = lineColor;
     }
 
+   let resizeTimeout;
+
     // Обработчик события изменения размера окна
    window.addEventListener('resize', () => {
        // Перерисовка остановок при изменении размера окна
-       renderStops(stops, lineColor);
+       clearTimeout(resizeTimeout);
+       resizeTimeout = setTimeout(() => {
+           renderStops(stops, lineColor);
+       }, 200);
    });
 
-   function updateRoute(currentStation, stops) {
-       const currentStationIndex = stops.findIndex(stop => stop.name === currentStation.name);
+   function createStopContainer(stop, currentStationIndex = -1, stopIndex = -1) {
+       const container = document.createElement('div');
+       container.classList.add('stop-info');
+       container.setAttribute('data-stop-index', stopIndex);
+       container.style.position = 'absolute';
 
-       if (currentStationIndex === -1) return;
+       const nameContainer = document.createElement('div');
+       nameContainer.classList.add('name-container');
+       nameContainer.innerText = stop.name;
 
-       let offsetToCurrentStation = 0;
+       const name2Conatainer = document.createElement('div');
+       name2Conatainer.classList.add('name2-container');
+       name2Conatainer.innerText = stop.name2;
 
-       for (let i = 0; i < currentStationIndex; i++) {
-           const stopInfo = progressBarContainer.querySelectorAll('.stop-info')[i];
-           offsetToCurrentStation -= (stopInfo.offsetWidth + 50)
+       if (currentStationIndex !== -1 && stopIndex === currentStationIndex) {
+           container.appendChild(nameContainer);
+           container.appendChild(name2Conatainer);
+           return container;
+       } else {
+           container.appendChild(nameContainer);
+           container.appendChild(name2Conatainer);
+           if (stopIndex > currentStationIndex) {
+               addTransferIcons(stop, nameContainer);
+           }
+           return container;
+       }
+   }
+
+   function addTransferIcons(stop, nameContainer) {
+       let arrowIcons = [];
+
+       stop.transfers.forEach(transfer => {
+           transfer.icon_parts.forEach(icon => {
+               if (icon.symbol === '➪' || icon.symbol === '➫') {
+                   arrowIcons.push(icon);
+               } else {
+                   const iconSpan = document.createElement('span');
+                   iconSpan.style.color = icon.color;
+                   iconSpan.style.fontSize = 'clamp(0.2rem, 0.9vw + 0.5rem, 3rem)';
+                   iconSpan.innerText = " " + icon.symbol;
+                   nameContainer.appendChild(iconSpan);
+               }
+           });
+       });
+
+       if (arrowIcons.length === 2) {
+           const combinedIcon = document.createElement('span');
+           combinedIcon.style.position = 'relative';
+
+           const icon1 = document.createElement('span');
+           icon1.style.color = arrowIcons[0].color;
+           icon1.style.fontSize = 'clamp(0.2rem, 0.9vw + 0.5rem, 3rem)';
+           icon1.innerText = arrowIcons[0].symbol;
+           combinedIcon.appendChild(icon1);
+
+           const icon2 = document.createElement('span');
+           icon2.style.color = arrowIcons[1].color;
+           icon2.innerText = arrowIcons[1].symbol;
+           icon2.style.position = 'absolute';
+           icon2.style.top = '0';
+           icon2.style.left = '0';
+           combinedIcon.appendChild(icon2);
+
+           nameContainer.appendChild(combinedIcon);
+       } else {
+           arrowIcons.forEach(icon => {
+               const iconSpan = document.createElement('span');
+               iconSpan.style.color = icon.color;
+               iconSpan.innerText = icon.symbol;
+               nameContainer.appendChild(iconSpan);
+           });
+       }
+   }
+
+   function createStopPoint(stop, lineColor, currentX, stopIndex) {
+       const point = document.createElement('div');
+       const hasTransfer = stop.transfers.some(transfer => transfer.transfer_name !== '');
+
+       if (hasTransfer) {
+           point.classList.add('stop-point');
+           point.style.borderColor = lineColor;
+       } else {
+           point.classList.add('stop-dot');
+           point.style.backgroundColor = lineColor;
        }
 
-       // Получаем текущее смещение
-        const startX = parseFloat(getComputedStyle(progressBarContainer).transform.split(',')[4]) || 0;
-        const startLineX = parseFloat(getComputedStyle(progressLine).transform.split(',')[4]) || 0;
-
-        // Определяем целевое смещение
-        const targetX = offsetToCurrentStation;
-
-        // Плавная анимация с использованием requestAnimationFrame
-        const animate = (timestamp) => {
-            const progress = Math.min((timestamp - start) / 500, 1); // 500 мс для анимации
-            const currentX = startX + (targetX - startX) * progress;
-
-            progressBarContainer.style.transform = `translateX(${currentX}px)`;
-            progressLine.style.transform = `translateX(${currentX}px)`;
-
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        };
-
-        const start = performance.now(); // Начало анимации
-        requestAnimationFrame(animate);
-        highlightCurrentStation(currentStation, stops);
+       point.style.position = 'absolute';
+       point.setAttribute('data-stop-index', stopIndex);
+       point.style.left = `${currentX}px`;
+       return point;
    }
 
-   function highlightCurrentStation(currentStation, stops) {
+    function updateRoute(currentStation, nextStation, stops) {
         const currentStationIndex = stops.findIndex(stop => stop.name === currentStation.name);
-        if (currentStationIndex === -1) return;
+        const nextStationIndex = stops.findIndex(stop => stop.name === nextStation.name);
 
-        // Находим все точки остановок
-        const stopPoints = progressBarContainer.querySelectorAll('.stop-point, .stop-dot');
+        if (currentStationIndex === -1 || nextStationIndex === -1) return;
 
-        // Удаляем эффект увеличения с других точек
-        stopPoints.forEach(point => {
-            point.classList.remove('highlight');
+        // Получаем элементы текущей и следующей станции
+        const currentStationElement = progressBarContainer.querySelectorAll('.stop-info')[currentStationIndex];
+        const nextStationElement = progressBarContainer.querySelectorAll('.stop-info')[nextStationIndex];
+
+        // Определяем целевое положение для текущей остановки
+        const targetPosition = 100; // Например, 100 пикселей от левого края экрана
+
+        // Рассчитываем текущее смещение для прогресс-бара
+        const currentStationOffset = currentStationElement.getBoundingClientRect().left;
+        const progressBarOffset = progressBarContainer.getBoundingClientRect().left; // Положение прогресс-бара
+
+        const nameContainer = currentStationElement.querySelector('.name-container');
+
+        Promise.all([
+            animateProgressBarShift(targetPosition, currentStationOffset, progressBarOffset),
+            highlightCurrentStation(currentStation, stops)
+        ]).then(() => {
+            setTimeout(() => {
+                renderStops(stops, lineColor, currentStation);
+            }, 500);
         });
+    }
 
-        // Находим точку текущей станции и добавляем эффект
-        const currentStopPoint = stopPoints[currentStationIndex];
-        if (currentStopPoint) {
-            currentStopPoint.classList.add('highlight');
-        }
+    function animateProgressBarShift(targetPosition, currentStationOffset, progressBarOffset) {
+       return new Promise((resolve) => {
+           const shiftX = targetPosition - (currentStationOffset - progressBarOffset);
+           const start = performance.now();
+           const startX = parseFloat(getComputedStyle(progressBarContainer).transform.split(',')[4]) || 0;
+
+           function animate(timestamp) {
+               const progress = Math.min ((timestamp - start) / 500, 1);
+               const currentX = startX + (shiftX - startX) * progress;
+
+               progressBarContainer.style.transform = `translateX(${currentX}px)`;
+               progressLine.style.transform = `translateX(${currentX}px)`;
+
+               if (progress < 1) {
+                   requestAnimationFrame(animate);
+               } else {
+                   resolve();
+               }
+           }
+           requestAnimationFrame(animate);
+       });
+    }
+
+   function animateSpansOut(nameContainer) {
+       return new Promise((resolve) => {
+           const spans = nameContainer.querySelectorAll('span');
+           let animationsCompleted = 0;
+
+           spans.forEach(span => {
+               // Восстанавливаем видимость и положение перед анимацией
+               span.style.opacity = '1';
+               span.style.transform = 'translateX(0)';
+               span.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+               span.style.position = 'static';
+
+               span.addEventListener('transitionend', () => {
+                   animationsCompleted++;
+                   if (animationsCompleted === spans.length) {
+                       resolve();
+                   }
+               }, {once: true});
+           });
+       });
    }
 
+    function animateSpans(nameContainer) {
+       return new Promise((resolve) => {
+           const spans = nameContainer.querySelectorAll('span');
+           let animationsCompleted = 0;
+
+           spans.forEach(span => {
+               span.style.opacity = '0';
+               span.style.transform = 'translateX(-100%)';
+               span.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+               span.style.position = 'absolute';
+               span.style.left = '100%';
+
+               span.addEventListener('transitionend', () => {
+                   animationsCompleted++;
+                   if (animationsCompleted === spans.length) {
+                       resolve();
+                   }
+               }, {once: true});
+           });
+       });
+    }
+
+    function toggleHighlight(nameContainer, highlight) {
+       if (highlight) {
+           return animateSpans(nameContainer);
+       } else {
+           return animateSpansOut(nameContainer);
+       }
+    }
+
+    function highlightCurrentStation(currentStation, stops) {
+        return new Promise((resolve) => {
+            const currentStationIndex = stops.findIndex(stop => stop.name === currentStation.name);
+            if (currentStationIndex === -1) return resolve();
+
+            // Находим все точки остановок
+            const stopPoints = progressBarContainer.querySelectorAll('.stop-point, .stop-dot');
+            const stopInfos = progressBarContainer.querySelectorAll('.stop-info');
+
+            // Удаляем эффект увеличения с других точек
+            stopPoints.forEach(point => point.classList.remove('highlight'));
+            stopInfos.forEach(stopInfo => {
+                const nameContainer = stopInfo.querySelector('.name-container');
+                const name2Container = stopInfo.querySelector('.name2-container');
+
+                // Скрываем элементы в контейнере, если убираем highlight
+                toggleHighlight(nameContainer, false);
+
+                stopInfo.classList.remove('highlight');
+                nameContainer.classList.remove('highlight');
+                name2Container.classList.remove('highlight');
+            });
+
+            // Анимация для текущей станции
+            const currentStopInfo = stopInfos[currentStationIndex];
+            const currentStopPoint = stopPoints[currentStationIndex];
+
+            if (currentStopInfo) {
+                const nameContainer = currentStopInfo.querySelector('.name-container');
+                const name2Container = currentStopInfo.querySelector('.name2-container');
+
+                // 1. Добавляем highlight и показываем span-ы
+                if (currentStopPoint) {
+                    currentStopInfo.classList.add('highlight');
+                    currentStopPoint.classList.add('highlight');
+                }
+
+                nameContainer.classList.add('highlight');
+                name2Container.classList.add('highlight');
+
+                Promise.all([
+                    toggleHighlight(nameContainer, true)
+                ]).then(() => {
+                    setTimeout(() => {
+                        renderStops(stops, lineColor, currentStation);
+                        resolve();
+                    }, 500);
+                });
+            }
+        });
+    }
+
+    function renderWagons(wagons) {
+        let wagonsContainer = document.querySelector('.wagons-container');
+
+        if (wagonsContainer) {
+            wagonsContainer.innerHTML = '';
+        } else {
+            wagonsContainer = document.createElement('div');
+            wagonsContainer.classList.add('wagons-container');
+
+            wagonsContainer.style.position = 'absolute';
+            wagonsContainer.style.bottom = '2%';
+            wagonsContainer.style.width = '90%';
+            wagonsContainer.style.left = '50%';
+            wagonsContainer.style.gap = '0.5%';
+            wagonsContainer.style.transform = 'translateX(-50%)';
+            wagonsContainer.style.display = 'flex';
+            wagonsContainer.style.justifyContent = 'space-around';
+            wagonsContainer.style.alignItems = 'center';
+            wagonsContainer.style.overflow = 'hidden';
+
+            bottomContainer.appendChild(wagonsContainer);
+        }
+
+        wagons.forEach(wagon => {
+            const wagonImg = document.createElement('img');
+            wagonImg.src = `data:image/png;base64,${wagon.encoded_string}`;
+            wagonImg.alt = wagon.name;
+            wagonImg.style.maxWidth = '100%';
+            wagonImg.style.maxHeight = '100%';
+            wagonImg.style.objectFit = 'contain';
+
+            const wagonWrapper = document.createElement('div');
+            wagonWrapper.style.flex = '1';
+            wagonWrapper.style.display = 'flex';
+            wagonWrapper.style.justifyContent = 'center';
+            wagonWrapper.style.alignItems = 'center';
+
+            wagonWrapper.appendChild(wagonImg);
+            wagonsContainer.appendChild(wagonWrapper);
+        })
+    }
+
+    function renderPng(currentPng) {
+       if (!currentPng) {
+           console.warn("No image data available for current station.");
+           return
+       }
+
+       let schemaContainer = bottomContainer.querySelector('.schema-container');
+       if (!schemaContainer) {
+           schemaContainer = document.createElement('div');
+           schemaContainer.classList.add('schema-container');
+           bottomContainer.appendChild(schemaContainer);
+       }
+
+       // Преобразуем PNG в URL
+       const imageUrl = `data:image/png;base64,${currentPng}`;
+       // Устанавливаем изображение как фон для schema-container
+       schemaContainer.style.backgroundImage = `url(${imageUrl})`;
+       schemaContainer.style.backgroundSize = '100% 100%';    // Подгоняет изображение под размеры контейнера, сохраняя пропорции
+       schemaContainer.style.backgroundPosition = 'center'; // Центрирует изображение
+       schemaContainer.style.backgroundRepeat = 'no-repeat'; // Не повторяет изображение
+
+       // Задаем стили для schema-container, чтобы он занимал нужное пространство в bottom-container
+       schemaContainer.style.position = 'absolute';
+       schemaContainer.style.top = '0';
+       schemaContainer.style.left = '0';
+       schemaContainer.style.width = '100%';
+       schemaContainer.style.height = '100%';
+       schemaContainer.style.zIndex = '-1';
+    }
 
     setTimeout(() => {
         topContainer.style.transform = 'translateY(0)';
@@ -190,13 +490,14 @@ document.addEventListener('DOMContentLoaded', () => {
             bottomContainer.style.transform = 'translateY(0)';
             progressBarContainer.classList.add('attached-to-bottom');
             progressLine.classList.add('attached-to-bottom');
-
+            topContainer.classList.add('hidden-top-container');
         } else {
             // Показываем контейнеры
             topContainer.style.transform = 'translateY(0)';
             bottomContainer.style.transform = 'translateY(100%)';
             progressBarContainer.classList.remove('attached-to-bottom');
             progressLine.classList.remove('attached-to-bottom');
+            topContainer.classList.remove('hidden-top-container');
         }
         isVisible = !isVisible;
     });

@@ -1,32 +1,20 @@
-<!DOCTYPE html>
+{% load static %}
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, 
+          maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Страница информации</title>
+{#    <link rel="stylesheet" type="text/css" href="{% static 'main/css/stylesheet.css' %}">#}
 </head>
 <body>
-    <h1>Москва BNT</h1>
-    <p id="data-display">Ожидание данных...</p>
-    <p id="data-display">
-        {% if data %}
-            Данные: {{ data|json_script:"parsedData" }}
-        {% else %}
-            Ожидание данных...
-        {% endif %}
-    </p>
-     <script>
-        const data = JSON.parse(document.getElementById("parsedData").textContent);
-        console.log(data);
-        document.getElementById("data-display").innerText = "Данные: " + JSON.stringify(data);
-    </script>
-    <script>
-        const socket = new WebSocket("ws://127.0.0.1:8000/ws/moscow_module/");
-        console.log('Established connect', socket);
 
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            document.getElementById("data-display").innerText = "Данные: " + JSON.stringify(data);
-        };
-    </script>
+    <h1>Данные с сервера</h1>
+    <div id="data-container">
+    </div>
 </body>
+<script src="{% static 'Screen_Server/js/moscow_script.js' %}"></script>
 </html>

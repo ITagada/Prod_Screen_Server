@@ -1,4 +1,6 @@
 import json
+import logging
+
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 class MoscowConsumer(AsyncWebsocketConsumer):
@@ -23,8 +25,8 @@ class MoscowConsumer(AsyncWebsocketConsumer):
         pass
 
     async def moscow_module_update(self, event):
-        data = event['message']
+        logging.info(f"Данные на сокете: {event}")
         await self.send(text_data=json.dumps({
             'type': 'update',
-            'message': data
+            'message': event['message']
         }))

@@ -11,16 +11,19 @@
 <body>
     <form method="POST">{% csrf_token %}</form>
     <h1>Ожидание подключения...</h1>
-
-    <script>
-        const socket = new WebSocket("ws://127.0.0.1:8000/ws/redirect/");
-
-        socket.onmessage = function(event) {
-            const data = JSON.parse(event.data);
-            if (data.type === "redirect") {
-                window.location.href = data.url;  // Перенаправляем клиента
-            }
-        };
-    </script>
 </body>
+<script>
+    async function checkModuleState() {
+        while (true) {
+            let response = await fetch('/get_module_state/');
+            let data = await response.json();
+            if (data.module_state === 'moscow') {
+                window.location.href = '/moscowBNT/';
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Ждем 1 секунду
+        }
+    }
+    checkModuleState();
+</script>
 </html>

@@ -1,11 +1,13 @@
 import struct
 import logging
-import binascii
 import json
 import asyncio
 
 from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 from typing import List, Tuple, Dict, Any
+
+
 
 
 class ByteParserBase:
@@ -73,9 +75,26 @@ class ByteParserBase:
 class SessionProtocolParser(ByteParserBase):
     def __init__(self, hex_data: str):
         super().__init__(hex_data)
-        logging.info(f"Получена строка данных: {hex_data}")
+        self.channel_layer = get_channel_layer()
+        # logging.info(f"Получена строка данных: {hex_data}")
 
         self.validate_marker()
+
+    async def send_to_socket_async(self, data: dict):
+        try:
+            await self.channel_layer.group_send(
+                'moscow_module_updates',
+                {
+                    'type': 'moscow_module_update',
+                    'message': data,
+                }
+            )
+            logging.info("Данные отправлены в WebSocket-группу 'moscow_module_updates'")
+        except Exception as e:
+            logging.error(f"Ошибка при отправке данных в WebSocket: {e}")
+
+    def send_to_socket(self, data: dict):
+        asyncio.create_task(self.send_to_socket_async(data))
 
     def validate_marker(self):
         marker = self.data[:8]
@@ -160,6 +179,8 @@ class SessionProtocolParser(ByteParserBase):
                 'status': 'success',
             }
 
+            self.send_to_socket(parsed_data['payload'])
+
             return parsed_data
 
         except Exception as e:
@@ -175,12 +196,12 @@ class SessionProtocolParser(ByteParserBase):
         if packet_id == 0:
             logging.info('ID пакета = 0: подтверждение не требуется.')
         elif not (1 <= packet_id <= 65535):
-            raise ValueError(f"Некорректный ID пакета: {packet_id}")
+            raise ValueError(f"Incorrect packet ID: {packet_id}")
 
 
 class OperationalData(ByteParserBase):
     structure: List[Tuple[str, str]] = [
-        ("str", "str"),
+        ("time", "str"),
         ("latitude", "float"),
         ("longitude", "float"),
         ("speed", "int"),

@@ -1,0 +1,68 @@
+.route {
+    display: flex;
+    top: -25%;
+    position: relative;
+    width: 82%;
+    height: 1.5vh;
+    background: #9460aa;
+}
+
+.route .completed-segment {
+    position: absolute;
+    height: 100%;
+    background: gray;
+    transition: width 0.5s;
+}
+
+.stop {
+    width: 3vh;
+    height: 3vh;
+    background: #9460aa;
+    border-radius: 50%;
+    position: absolute;
+    top: -0.85vh;
+    transform: translateX(-50%);
+    transition: background 0.3s, border 0.3s;
+}
+
+.completed {
+    background: gray;
+}
+
+.highlight {
+    background: #9460aa;
+    transform: scale(1.3);
+    transform-origin: right;
+}
+
+.label {
+    position: absolute;
+    transform: rotate(30deg);
+    transform-origin: top left;
+    transition: color 0.3s, transform 0.3s;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.label-wrapper {
+    position: absolute;
+    display: inline-block;
+    top: calc(100% + 10px);
+    transform-origin: top left;
+    transform: rotate(30deg);
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.completed-label {
+    color: gray;
+    transform: rotate(30deg);
+    transition: color 0.3s, transform 0.3s;
+}
+
+.highlight-label {
+    transform: rotate(30deg) scale(1.3);
+    transition: color 0.3s, transform 0.3s;
+}
+

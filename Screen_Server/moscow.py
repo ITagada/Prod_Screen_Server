@@ -3,11 +3,15 @@ import logging
 import json
 import asyncio
 
+from django.core.cache import cache
+
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
+from datetime import datetime as dt
 
 
+STOPS = []
 
 
 class ByteParserBase:
@@ -199,6 +203,19 @@ class SessionProtocolParser(ByteParserBase):
             raise ValueError(f"Incorrect packet ID: {packet_id}")
 
 
+def find_station_index(next_station_id: int) -> Tuple[Optional[int], Optional[int]]:
+    next_index = None
+    current_index = None
+
+    for i, stop in enumerate(STOPS):
+        if stop['stationID'] == next_station_id:
+            next_index = i
+            current_index = i - 1 if i > 0 else None
+            break
+
+    return current_index, next_index
+
+
 class OperationalData(ByteParserBase):
     structure: List[Tuple[str, str]] = [
         ("time", "str"),
@@ -214,12 +231,20 @@ class OperationalData(ByteParserBase):
     ]
 
     def parse(self) -> Dict[str, Any]:
-        parsed_data = {}
+        parsed_data = {
+            'dataType': self.__class__.__name__,
+        }
         for field_name, field_type in self.structure:
             parsed_data[field_name] = self.read(field_type)
+
+        next_station_id = parsed_data['nextStationID']
+        current_index, next_index = find_station_index(next_station_id)
+
+        parsed_data['currentStationIndex'] = current_index
+        parsed_data['nextStationIndex'] = next_index
+
         logging.info(f"Данные класса OperationalData: {parsed_data}")
         return parsed_data
-
 
 class AdditionalOperationalData(ByteParserBase):
     structure: List[Tuple[str, str]] = [
@@ -228,7 +253,9 @@ class AdditionalOperationalData(ByteParserBase):
     ]
 
     def parse(self) -> Dict[str, Any]:
-        parsed_data = {}
+        parsed_data = {
+            'dataType': self.__class__.__name__,
+        }
         for field_name, field_type in self.structure:
             parsed_data[field_name] = self.read(field_type)
 
@@ -243,6 +270,47 @@ class AdditionalOperationalData(ByteParserBase):
         return parsed_data
 
 
+def get_stops_position(route_data):
+    stops = []
+    line_length = 100
+    start_position = 0
+    stations = route_data['stations']
+    total_stops = len(stations)
+
+    if total_stops > 1:
+        step = line_length / (total_stops - 1)
+    else:
+        step = 0
+
+    for i, (key, station) in enumerate(stations.items(), start=1):
+        station_name_key = f'stationName{i}'
+        station_id_key = f'stationID{i}'
+        arrive_timestamp_key = f'arriveTimestamp{i}'
+        departure_timestamp_key = f'departureTimestamp{i}'
+
+        stop_info = {
+            'stationName': station.get(station_name_key, f"station{i}"),
+            'stationID': station.get(station_id_key, i),
+            'arriveTimestamp': station.get(arrive_timestamp_key, "00:00:00"),
+            'departureTimestamp': station.get(departure_timestamp_key, "00:00:00"),
+            'position': round(start_position, 3),
+        }
+
+        stops.append(stop_info)
+        start_position += step
+
+    return stops
+
+# def add_position(func):
+#     def wrapper(*args, **kwargs):
+#         parsed_data = func(*args, **kwargs)
+#         if 'stations' in parsed_data:
+#             parsed_data['stops'] = get_stops_position(parsed_data)
+#             del parsed_data['stations']
+#         return parsed_data
+#     return wrapper
+
+
 class RouteData(ByteParserBase):
     structure: List[Tuple[str, str]] = [
         ("trainNumber", "str"),
@@ -252,16 +320,41 @@ class RouteData(ByteParserBase):
     ]
 
     def parse(self) -> Dict[str, Any]:
-        parsed_data = {}
+        parsed_data = {
+            'dataType': self.__class__.__name__,
+        }
         for field_name, field_type in self.structure:
             parsed_data[field_name] = self.read(field_type)
 
         count = parsed_data["count"]
+        stations = {}
+
         for i in range(1, count + 1):
-            parsed_data[f'stationID{i}'] = self.read("float")
-            parsed_data[f'stationName{i}'] = self.read("str")
-            parsed_data[f'arriveTime{i}'] = self.read("float")
-            parsed_data[f'departureTime{i}'] = self.read("float")
+            station_id = self.read("int32")
+            station_name = self.read("str")
+            arrive_timestamp = self.read("int32")
+            departure_timestamp = self.read("int32")
+
+            stations[f"station{i}"] = {
+                f'stationName{i}': station_name,
+                f'stationID{i}': station_id,
+                f'arriveTimestamp{i}': dt.utcfromtimestamp(arrive_timestamp).strftime('%H:%M:%S'),
+                f'departureTimestamp{i}': dt.utcfromtimestamp(departure_timestamp).strftime('%H:%M:%S'),
+            }
+
+        parsed_data['stations'] = stations
+        new_stops = get_stops_position(parsed_data)
+
+        global STOPS
+        if new_stops != STOPS:
+            logging.info('Обновляем stops, так как маршрут изменился.')
+            STOPS = new_stops
+            cache_set("STOPS", STOPS)
+        else:
+            logging.info('Маршрут не изменился, stops остаётся тем же.')
+
+        parsed_data['stops'] = STOPS
+        del parsed_data['stations']
 
         logging.info(f"Данные класса RouteData: {parsed_data}")
         return parsed_data
@@ -273,7 +366,9 @@ class ConfigureData(ByteParserBase):
     ]
 
     def parse(self) -> Dict[str, Any]:
-        parsed_data = {}
+        parsed_data = {
+            'dataType': self.__class__.__name__,
+        }
         for field_name, field_type in self.structure:
             parsed_data[field_name] = self.read(field_type)
 
@@ -315,3 +410,7 @@ class PacketFactory:
 
         # logging.info(f"Данные класса PacketFactory: {packet_calss}")
         return packet_calss(data[2:])
+
+
+def cache_set(key, variable, timeout=3600):
+    cache.set(f"cached_{key}", variable, timeout)

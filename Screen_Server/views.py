@@ -109,7 +109,7 @@ class MoscowProtocol(asyncio.DatagramProtocol):
         logging.info("UDP-соединение установлено")
 
     def datagram_received(self, data, addr):
-        logging.info(f"Получены данные: {data.hex()}")
+        # logging.info(f"Получены данные: {data.hex()}")
         hex_data = data.hex()
         parser = SessionProtocolParser(hex_data)
         parser.parse_packet()

@@ -1,0 +1,429 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 99vh;
+    display: flex;
+}
+
+/*@font-face {*/
+/*    font-family: 'MoscowSansdev';*/
+/*    src: url('/static/main/fonts/MoscowSansdev.ttf') format('truetype');*/
+/*    font-weight: normal;*/
+/*    font-style: normal;*/
+/*}*/
+
+.main {
+    display: flex;
+    width: 100vw;
+    justify-content: center;
+    align-items: center;
+    flex-grow: 1;
+    font-family: 'MoscowSansdev', sans-serif;
+}
+
+.container-1 {
+    background: #adcad6;
+    position: relative;
+    flex: 1 1 20vw;
+    flex-direction: column;
+    height: 99vh;
+}
+
+.col-1-1-1 {
+    height: 15%;
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+h2 {
+    height: 100%;
+    color: #15779e;
+    text-align: center;
+    font-size: clamp(0.2rem, 1vw + 0.5rem, 3rem);;
+}
+
+.col-1-1 {
+    height: 25%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    text-align: center;
+    align-items: center;
+}
+
+.transition {
+    position: relative;
+    width: 100%;
+    height: 25%;
+    margin-bottom: 5vh;
+    max-height: 15vh;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    font-size: clamp(0.2rem, 0.5vw + 0.5rem, 2.5rem);
+}
+
+.ico {
+    width: clamp(1.5rem, 0.8vw + 0.5rem, 2.5rem);
+    height: clamp(1.5rem, 0.8vw + 0.5rem, 2.5rem);
+    left: 3vw;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: clamp(1rem, 0.5vw + 0.5rem, 1.5rem);
+    font-weight: bold;
+    color: white;
+}
+
+.transition-text {
+    width: 80%;
+    display: flex;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.container-2 {
+    margin: 0px 5px 0px 5px;
+    flex: 1 1 60vw;
+    height: 99vh;
+    flex-direction: column;
+}
+
+.col-2-1 {
+    color: white;
+    background: #9460aa;
+    margin-bottom: 1.5vh;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    font-size: clamp(0.2rem, 1vw + 1rem, 4rem);
+    height: 34%;
+}
+
+.col-2-2 {
+    color: #9460aa;
+    flex: 1;
+    display: flex;
+    position: relative;
+    justify-content: center;
+    text-align: center;
+    align-items: center;
+    height: 65%;
+    font-size: 3vh;
+    font-family: Arial, sans-serif;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.running-text {
+    display: flex;
+    bottom: 0;
+    left: 0;
+    position: absolute;
+    background: #1b1b1b;
+    width: 100%;
+    height: 10vh;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.text-container {
+    display: inline-block;
+    color: #9460aa;
+    font-size: 3cap;
+    text-align: center;
+    white-space: nowrap;
+    position: relative;
+    right: 0;
+    height: 100%;
+}
+
+.running-text.show {
+    opacity: 1;
+}
+
+.running-text.hide {
+    opacity: 0;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.change-station-animation {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.container-3 {
+    flex: 1 1 20vw;
+    height: 99vh;
+    margin: 0;
+    flex-direction: column;
+}
+
+.col-3-1 {
+    background: #adcad6;
+    margin-bottom: 1.5vh;
+    max-width: 100%;
+    flex: 1;
+    position: relative;
+    justify-content: center;
+    text-align: left;
+    align-items: center;
+    height: 34%;
+}
+
+.col-3-1-1 {
+    min-width: 0;
+    position: absolute;
+    top: 0px;
+    height: 30%;
+    color: #15779e;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.col-3-1-1-1 {
+    flex: 1;
+    height: 50%;
+    display: flex;
+    justify-content: left;
+    text-align: left;
+    align-items: center;
+    font-size: clamp(0.2rem, 0.7vw + 0.1rem, 5vh);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.col-3-1-1-2 {
+    flex: 1;
+    height: 50%;
+    display: flex;
+    justify-content: left;
+    text-align: left;
+    font-weight: bold;
+    font-size: clamp(0.2rem, 1vw + 0.1rem, 5vh);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+
+.col-3-1-2 {
+    flex: 1;
+    height: 70%;
+    width: 50%;
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    text-align: start;
+    align-items: center;
+}
+
+.time {
+    flex: 0;
+    justify-content: left;
+    text-align: left;
+    font-weight: bold;
+    font-size: clamp(0.2rem, 1vw + 0.2rem, 4rem);
+}
+
+.date {
+    flex: 0;
+    justify-content: left;
+    text-align: left;
+    font-size: clamp(0.2rem, 0.7vw + 0.1rem, 2rem);
+}
+
+.col-3-1-3 {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    height: 70%;
+    width: 50%;
+    display: flex;
+    font-size: 1vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.temperature {
+    position: absolute;
+    color: #15779e;
+    height: 30%;
+    top: 0px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    text-align: center;
+    align-items: end;
+    font-size: clamp(0.2rem, 0.5vw + 0.2rem, 1rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inside {
+    position: absolute;
+    height: 70%;
+    width: 48%;
+    bottom: 0px;
+    left: 0px;
+}
+
+.insidehead {
+    display: flex;
+    min-height: 20%;
+    justify-content: center;
+    text-align: center;
+    font-size: clamp(0.2rem, 0.5vw + 0.2rem, 2rem);
+    overflow: hidden;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.insidebody {
+    display: flex;
+    justify-content: center;
+    align-items: start;
+    font-size: clamp(0.2rem, 1vw + 1rem, 3rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+}
+
+.outside {
+    position: absolute;
+    height: 70%;
+    width: 52%;
+    bottom: 0px;
+    right: 0px;
+}
+
+.outsidehead {
+    display: flex;
+    min-height: 20%;
+    justify-content: center;
+    text-align: center;
+    font-size: clamp(0.2rem, 0.5vw + 0.2rem, 2rem);
+    overflow: hidden;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.outsidebody {
+    display: flex;
+    justify-content: center;
+    align-items: start;
+    font-size: clamp(0.2rem, 1vw + 1rem, 3rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+}
+
+.col-3-2 {
+    background: #adcad6;
+    flex: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    height: 65%;
+    overflow: hidden;
+}
+
+.exit-indicator {
+    position: relative;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    display: none;
+    background: transparent;
+}
+
+.exit-indicator.show {
+    opacity: 1;
+    display: flex;
+}
+
+.exit-indicator.hide {
+    opacity: 0;
+}
+
+.exit-text {
+    width: 100%;
+    height: 10%;
+    font-size: clamp(0.2rem, 1vw + 1rem, 2rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: bold;
+    justify-content: center;
+    text-align: center;
+    background-color: transparent;
+}
+
+.arrow {
+    width: 100%;
+    height: 25%;
+    /*background: url('/media/gif/free-animated-icon-exit-10399071.gif') no-repeat center;*/
+    background-size: contain;
+    mix-blend-mode: multiply;
+    right: 0;
+}
+
+.person {
+    width: 100%;
+    height: 65%;
+    /*background: url('/media/gif/free-animated-icon-walk-10306546.gif') no-repeat center;*/
+    background-size: contain;
+    /*background-color: transparent;*/
+    mix-blend-mode: multiply;
+    left: 0;
+    animation: walk-animation 3s linear infinite;
+}
+
+.video {
+    max-width: 100%;
+    max-height: 100%;
+    min-height: 100%;
+    object-fit: contain;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.player-animation {
+    animation: fadeIn 0.5s ease-in-out;
+}

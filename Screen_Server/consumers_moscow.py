@@ -2,6 +2,9 @@ import json
 import logging
 
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.cache import cache
+from asgiref.sync import sync_to_async
+
 
 class MoscowConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -13,6 +16,8 @@ class MoscowConsumer(AsyncWebsocketConsumer):
         )
 
         await self.accept()
+        stops = await sync_to_async(cache.get)("cached_STOPS")
+        await self.send(text_data=json.dumps({'start_stops': stops}))
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(

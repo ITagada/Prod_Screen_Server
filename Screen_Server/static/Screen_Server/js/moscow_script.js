@@ -1,51 +1,71 @@
 let stops = null;
+let socket = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 60;
+const reconnectInterval = 1000;
 
-// Определяем адрес WebSocket-сервера
-const socket = new WebSocket(`ws://${window.location.host}/ws/moscow_module/`);
+function createWebSocket() {
+    // Определяем адрес WebSocket-сервера
+    socket = new WebSocket(`ws://${window.location.host}/ws/moscow_module/`);
 
-// Обработчик открытия соединения
-socket.onopen = function () {
-    console.log("WebSocket подключен");
-    socket.send(JSON.stringify({type: 'ping'}));
-};
+    // Обработчик открытия соединения
+    socket.onopen = function () {
+        console.log("WebSocket подключен");
+        socket.send(JSON.stringify({type: 'ping'}));
+        reconnectAttempts = 0;
+    };
 
-// Обработчик ошибок
-socket.onerror = function (error) {
-    console.error("Ошибка WebSocket:", error);
-};
+    // Обработчик ошибок
+    socket.onerror = function (error) {
+        console.error("Ошибка WebSocket:", error);
+    };
 
-// Обработчик получения сообщения
-socket.onmessage = function (event) {
-    const data = JSON.parse(event.data);
-    console.log("Получены данные:", data);
+    // Обработчик получения сообщения
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        console.log("Получены данные:", data);
 
-    if (data.start_stops) {
-        stops = data.start_stops;
-        console.log('Стартовая отрисовка');
-        renderStops(stops)
-    }
-
-    if (data.message && data.message.dataType === 'RouteData') {
-        const newStops = data.message.stops;
-        if (isStopsChanged(newStops)) {
-            stops = newStops;
-            console.log('Маршрут изменился, обновляем...');
+        if (data.start_stops) {
+            stops = data.start_stops;
+            console.log('Стартовая отрисовка');
             renderStops(stops);
-        } else {
-            console.log('Маршрут не изменился, пропускаем обновление.');
+            updateProgressBar(data.currentStationIndex, data.nextStationIndex);
         }
-    }
 
-    if (data.message && data.message.dataType === 'OperationalData') {
-        console.log("Данные типа:", data.message.dataType);
-        updateProgressBar(data.message.currentStationIndex, data.message.nextStationIndex);
-    }
-};
+        if (data.message && data.message.dataType === 'RouteData') {
+            const newStops = data.message.stops;
+            if (isStopsChanged(newStops)) {
+                stops = newStops;
+                console.log('Маршрут изменился, обновляем...');
+                renderStops(stops);
+            } else {
+                console.log('Маршрут не изменился, пропускаем обновление.');
+            }
+        }
 
-// Обработчик закрытия соединения
-socket.onclose = function (event) {
-    console.log("WebSocket закрыт:", event);
-};
+        if (data.message && data.message.dataType === 'OperationalData') {
+            console.log("Данные типа:", data.message.dataType);
+            updateProgressBar(data.message.currentStationIndex, data.message.nextStationIndex);
+        }
+    };
+
+    // Обработчик закрытия соединения
+    socket.onclose = function (event) {
+        console.log("WebSocket закрыт:", event);
+
+        if (reconnectAttempts < maxReconnectAttempts) {
+            setTimeout(() => {
+                console.log(`Попытка переподключения: ${reconnectAttempts + 1}`);
+                reconnectAttempts++;
+                createWebSocket();
+            }, reconnectInterval);
+        } else {
+            console.error('Максимальное количество попыток переподключения достигнуто');
+        }
+    };
+}
+
+createWebSocket();
 
 function isStopsChanged(newStops) {
     if (!stops || stops.length !== newStops.length) {

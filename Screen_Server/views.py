@@ -20,6 +20,7 @@ LAST_PACKET_DATA = None
 MODULE_STATE = None
 MOSCOW_PORT = 29789
 MOSCOW_CLIENT_RUNNING = False
+_sniffing_started = False
 
 # Функция для запуска UDP-сервера
 def packet_callback(packet):
@@ -51,8 +52,11 @@ def start_sniffing():
     sniff(prn=packet_callback, iface="enp6s0", filter='udp and port 29789', store=0, monitor=True)
 
 def start_sniffing_thread():
-    sniff_thread = threading.Thread(target=start_sniffing, daemon=True)
-    sniff_thread.start()
+    global _sniffing_started
+    if not _sniffing_started:
+        _sniffing_started = True
+        sniff_thread = threading.Thread(target=start_sniffing, daemon=True)
+        sniff_thread.start()
 
 def index(request):
     global MODULE_STATE

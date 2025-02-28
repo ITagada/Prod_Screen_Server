@@ -11,8 +11,6 @@ from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime as dt
 
 
-STOPS = []
-
 
 class ByteParserBase:
     DATA_SIZE = {
@@ -207,7 +205,13 @@ def find_station_index(next_station_id: int) -> Tuple[Optional[int], Optional[in
     next_index = None
     current_index = None
 
-    for i, stop in enumerate(STOPS):
+    stops = cache_get('STOPS')
+
+    if not stops:
+        logging.error('cached_STOPS отсутствует в кэше или равно None')
+        return current_index, next_index
+
+    for i, stop in enumerate(stops):
         if stop['stationID'] == next_station_id:
             next_index = i
             current_index = i - 1 if i > 0 else None
@@ -243,7 +247,10 @@ class OperationalData(ByteParserBase):
         parsed_data['currentStationIndex'] = current_index
         parsed_data['nextStationIndex'] = next_index
 
-        logging.info(f"Данные класса OperationalData: {parsed_data}")
+        logging.info(f"Кэшируем индексы: current={current_index}, next={next_index}")
+        cache_set('CURRENT_NEXT_INDEX', {'current': current_index, 'next': next_index})
+
+        logging.info(f"Отработал класс OperationalData")
         return parsed_data
 
 class AdditionalOperationalData(ByteParserBase):
@@ -266,7 +273,7 @@ class AdditionalOperationalData(ByteParserBase):
             parsed_data[f'temp{i}'] = self.read("int")
             parsed_data[f'passengers{i}'] = self.read("int")
 
-        logging.info(f"Данные класса AdditionalOperationalData: {parsed_data}")
+        logging.info(f"Отработал класс AdditionalOperationalData")
         return parsed_data
 
 
@@ -345,18 +352,18 @@ class RouteData(ByteParserBase):
         parsed_data['stations'] = stations
         new_stops = get_stops_position(parsed_data)
 
-        global STOPS
-        if new_stops != STOPS:
+        cached_stops = cache.get('cached_STOPS')
+
+        if new_stops != cached_stops:
             logging.info('Обновляем stops, так как маршрут изменился.')
-            STOPS = new_stops
-            cache_set("STOPS", STOPS)
+            cache_set("STOPS", new_stops)
         else:
             logging.info('Маршрут не изменился, stops остаётся тем же.')
 
-        parsed_data['stops'] = STOPS
+        parsed_data['stops'] = new_stops
         del parsed_data['stations']
 
-        logging.info(f"Данные класса RouteData: {parsed_data}")
+        logging.info(f"Отработал класс RouteData")
         return parsed_data
 
 
@@ -379,7 +386,7 @@ class ConfigureData(ByteParserBase):
             parsed_data.update(self.decode_id(f'id{i}', raw_id))
             parsed_data[f'dir{i}'] = self.read("byte")
 
-        logging.info(f"Данные класса ConfigurelData: {parsed_data}")
+        logging.info(f"Отработал класс ConfigureData")
         return parsed_data
 
     @staticmethod
@@ -412,5 +419,12 @@ class PacketFactory:
         return packet_calss(data[2:])
 
 
-def cache_set(key, variable, timeout=3600):
-    cache.set(f"cached_{key}", variable, timeout)
+def cache_set(key, variable, timeout=86400):
+    existing_value = cache.get(f"cached_{key}")
+    if existing_value != variable:
+        cache.set(f"cached_{key}", variable, timeout)
+
+def cache_get(key: dict=None):
+    if key is None:
+        return {}
+    return cache.get(f"cached_{key}")

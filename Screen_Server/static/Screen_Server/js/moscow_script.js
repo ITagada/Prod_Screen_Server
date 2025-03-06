@@ -1,6 +1,8 @@
 let stops = null;
 let socket = null;
 let reconnectAttempts = 0;
+let serverTime = null;
+let localOffset = 0;
 const maxReconnectAttempts = 60;
 const reconnectInterval = 1000;
 
@@ -46,6 +48,10 @@ function createWebSocket() {
         if (data.message && data.message.dataType === 'OperationalData') {
             console.log("Данные типа:", data.message.dataType);
             updateProgressBar(data.message.currentStationIndex, data.message.nextStationIndex);
+            if (data.message?.time) {
+                let time = data.message.time;
+                handleServerMessage(time);
+            }
         }
     };
 
@@ -123,6 +129,11 @@ function updateProgressBar(currentIndex, nextIndex) {
         const currentStop = stops[currentIndex];
         completedSegment.style.width = `${currentStop.style.left}`;
     }
+}
+
+function handleServerMessage(time) {
+    serverTime = new Date(time);
+    localOffset = serverTime - Date.now();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -290,19 +301,15 @@ document.addEventListener('DOMContentLoaded', function() {
     container3.appendChild(col3_2);
 
     function updateTime() {
-        var nowDateTime = new Date();
-        var dateOptions = {
-            weekday: "short", year: "numeric", month: "long", day: "numeric"
-        };
-        var timeOptions = {
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        };
-        var formattedDate = nowDateTime.toLocaleDateString('ru-RU', dateOptions);
-        var formattedTime = nowDateTime.toLocaleTimeString('ru-RU', timeOptions);
-        document.getElementById('time').innerText = formattedTime;
-        document.getElementById('date').innerText = formattedDate;
+        if (!serverTime) return;
+
+        let now = new Date(Date.now() + localOffset);
+        let dateOptions = {weekday: 'short', year: 'numeric', month: 'long', day: 'numeric'};
+        let timeOptions = {hour: '2-digit', minute: '2-digit', second: '2-digit'};
+
+        document.getElementById('time').innerText = now.toLocaleTimeString('ru-RU', timeOptions);
+        document.getElementById('date').innerText = now.toLocaleDateString('ru-RU', dateOptions);
     }
     setInterval(updateTime, 1000);
 
-    updateTime();
 });

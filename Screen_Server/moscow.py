@@ -1,3 +1,4 @@
+import socket
 import struct
 import logging
 import json
@@ -21,9 +22,10 @@ class ByteParserBase:
         "byte": 2  # 2 символа HEX = 1 байт
     }
 
-    def __init__(self, hex_data: str):
+    def __init__(self, hex_data: str, sender_ip: str=None):
         self.data = hex_data
         self.offset = 0
+        self.sender_ip = sender_ip
 
     def parse_packet(self):
         """
@@ -168,11 +170,12 @@ class SessionProtocolParser(ByteParserBase):
                     'error_message': 'Invalid CRC',
                 }
 
+            sender_ip = header['sender_ip']
             payload = self.data[self.offset:]
             # logging.info(f"Полезная нагрузка: {payload}")
 
             if header['size'] > 0:
-                payload_parser = PacketFactory.create_packet(payload)
+                payload_parser = PacketFactory.create_packet(payload, sender_ip)
                 payload = payload_parser.parse_packet()
 
             parsed_data = {
@@ -182,6 +185,8 @@ class SessionProtocolParser(ByteParserBase):
             }
 
             self.send_to_socket(parsed_data['payload'])
+
+            # logging.info(f"Распаршенный пакет: {parsed_data}")
 
             return parsed_data
 
@@ -326,45 +331,69 @@ class RouteData(ByteParserBase):
         ("count", "int"),
     ]
 
+    def __init__(self, hex_data: str, sender_ip: str):
+        super().__init__(hex_data, sender_ip)
+
+    def send_answer(self, result_code: int):
+        try:
+            ans_packet = bytes([0xFF, result_code])
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(self.sender_ip, 29789)
+            sock.send(ans_packet)
+            sock.close()
+            logging.info(f"Отправлено подтверждение {ans_packet.hex()} на {self.sender_ip}")
+        except Exception as e:
+            logging.error(f"Ошибка при отправке ответа: {e}")
+
     def parse(self) -> Dict[str, Any]:
-        parsed_data = {
-            'dataType': self.__class__.__name__,
-        }
-        for field_name, field_type in self.structure:
-            parsed_data[field_name] = self.read(field_type)
-
-        count = parsed_data["count"]
-        stations = {}
-
-        for i in range(1, count + 1):
-            station_id = self.read("int32")
-            station_name = self.read("str")
-            arrive_timestamp = self.read("int32")
-            departure_timestamp = self.read("int32")
-
-            stations[f"station{i}"] = {
-                f'stationName{i}': station_name,
-                f'stationID{i}': station_id,
-                f'arriveTimestamp{i}': dt.utcfromtimestamp(arrive_timestamp).strftime('%H:%M:%S'),
-                f'departureTimestamp{i}': dt.utcfromtimestamp(departure_timestamp).strftime('%H:%M:%S'),
+        try:
+            parsed_data = {
+                'dataType': self.__class__.__name__,
             }
+            for field_name, field_type in self.structure:
+                parsed_data[field_name] = self.read(field_type)
 
-        parsed_data['stations'] = stations
-        new_stops = get_stops_position(parsed_data)
+            count = parsed_data["count"]
+            stations = {}
 
-        cached_stops = cache.get('cached_STOPS')
+            for i in range(1, count + 1):
+                station_id = self.read("int32")
+                station_name = self.read("str")
+                arrive_timestamp = self.read("int32")
+                departure_timestamp = self.read("int32")
 
-        if new_stops != cached_stops:
-            logging.info('Обновляем stops, так как маршрут изменился.')
-            cache_set("STOPS", new_stops)
-        else:
-            logging.info('Маршрут не изменился, stops остаётся тем же.')
+                stations[f"station{i}"] = {
+                    f'stationName{i}': station_name,
+                    f'stationID{i}': station_id,
+                    f'arriveTimestamp{i}': dt.utcfromtimestamp(arrive_timestamp).strftime('%H:%M:%S'),
+                    f'departureTimestamp{i}': dt.utcfromtimestamp(departure_timestamp).strftime('%H:%M:%S'),
+                }
 
-        parsed_data['stops'] = new_stops
-        del parsed_data['stations']
+            parsed_data['stations'] = stations
+            new_stops = get_stops_position(parsed_data)
 
-        logging.info(f"Отработал класс RouteData")
-        return parsed_data
+            cached_stops = cache.get('cached_STOPS')
+
+            if new_stops != cached_stops:
+                logging.info('Обновляем stops, так как маршрут изменился.')
+                cache_set("STOPS", new_stops)
+                result_code = 0x00
+            else:
+                logging.info('Маршрут не изменился, stops остаётся тем же.')
+                result_code = 0x00
+
+            parsed_data['stops'] = new_stops
+            del parsed_data['stations']
+
+            self.send_answer(result_code)
+
+            logging.info(f"Отработал класс RouteData")
+            return parsed_data
+
+        except Exception as e:
+            logging.error(f"Ошибка в RouteData: {e}")
+            self.send_answer(0x02)
+            return {'status': 'error', 'error_message': str(e)}
 
 
 class ConfigureData(ByteParserBase):
@@ -409,14 +438,17 @@ class PacketFactory:
     }
 
     @staticmethod
-    def create_packet(data: bytes) -> ByteParserBase:
+    def create_packet(data: bytes, sender_ip: str) -> ByteParserBase:
         packet_id = data[:2]
         packet_calss = PacketFactory.PACKET_MAP.get(packet_id)
         if not packet_calss:
             raise ValueError(f"Invalid packet id {packet_id}")
 
         # logging.info(f"Данные класса PacketFactory: {packet_calss}")
-        return packet_calss(data[2:])
+        if packet_calss == RouteData:
+            return packet_calss(data[2:], sender_ip)
+        else:
+            return packet_calss(data[2:])
 
 
 def cache_set(key, variable, timeout=86400):

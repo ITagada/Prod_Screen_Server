@@ -52,6 +52,6 @@ class MoscowConsumer(AsyncWebsocketConsumer):
         key = f"{ip}:{port}"
         params = cache.get(key)
         if not params:
-            params = {}
+            params = None
             cache.set(key, params, timeout=3600)
         return params

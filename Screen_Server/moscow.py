@@ -11,6 +11,7 @@ from asgiref.sync import async_to_sync
 from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime as dt
 
+from pyasn1_modules.rfc5636 import id_data
 
 
 class ByteParserBase:
@@ -337,13 +338,14 @@ class RouteData(ByteParserBase):
     def send_answer(self, result_code: int):
         try:
             ans_packet = bytes([0xFF, result_code])
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect(self.sender_ip, 29789)
-            sock.send(ans_packet)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # logging.info(f"Попытка соединения с {self.sender_ip}:29789")
+            sock.sendto(ans_packet, (self.sender_ip, 29789))
             sock.close()
-            logging.info(f"Отправлено подтверждение {ans_packet.hex()} на {self.sender_ip}")
+            # logging.info(f"Отправлено подтверждение {ans_packet.hex()} на {self.sender_ip}")
         except Exception as e:
-            logging.error(f"Ошибка при отправке ответа: {e}")
+            # logging.error(f"Ошибка при отправке ответа: {e}")
+            raise {'status': 'error', 'error_message': str(e)}
 
     def parse(self) -> Dict[str, Any]:
         try:
@@ -401,6 +403,10 @@ class ConfigureData(ByteParserBase):
         ("count", "int"),
     ]
 
+    def __init__(self, hex_data: str):
+        super().__init__(hex_data)
+        self.switch_ips = []
+
     def parse(self) -> Dict[str, Any]:
         parsed_data = {
             'dataType': self.__class__.__name__,
@@ -412,9 +418,23 @@ class ConfigureData(ByteParserBase):
         for i in range(1, count + 1):
             raw_id = self.read("int32")
             parsed_data[f'id{i}_raw'] = raw_id
-            parsed_data.update(self.decode_id(f'id{i}', raw_id))
-            parsed_data[f'dir{i}'] = self.read("byte")
+            id_data = self.decode_id(f'id{i}', raw_id)
+            parsed_data.update(id_data)
+            direction = self.read("byte")
+            parsed_data[f'dir{i}'] = direction
 
+            train = id_data[f"id{i}_train"]
+            wagon = id_data[f"id{i}_wagon"]
+
+            left_switch_ip = f"10.0.{train}.{wagon}"
+            right_switch_ip = f"10.0.{train}.{wagon + 20}"
+
+            if direction == 0x01:
+                left_switch_ip, right_switch_ip = right_switch_ip, left_switch_ip
+
+            self.switch_ips.append((left_switch_ip, right_switch_ip))
+
+        logging.info(f"Карта коммутаторов: {self.switch_ips}")
         logging.info(f"Отработал класс ConfigureData")
         return parsed_data
 

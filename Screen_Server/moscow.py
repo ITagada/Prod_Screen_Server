@@ -4,14 +4,15 @@ import logging
 import json
 import asyncio
 
+from channels.utils import await_many_dispatch
 from django.core.cache import cache
 
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime as dt
 
-from pyasn1_modules.rfc5636 import id_data
+from Screen_Server.consumers_moscow import MoscowConsumer
 
 
 class ByteParserBase:
@@ -87,14 +88,17 @@ class SessionProtocolParser(ByteParserBase):
 
     async def send_to_socket_async(self, data: dict):
         try:
-            await self.channel_layer.group_send(
-                'moscow_module_updates',
-                {
-                    'type': 'moscow_module_update',
-                    'message': data,
-                }
-            )
-            logging.info("Данные отправлены в WebSocket-группу 'moscow_module_updates'")
+            if data['dataType'] == 'ConfigureData':
+                return
+            else:
+                await self.channel_layer.group_send(
+                    'moscow_module_updates',
+                    {
+                        'type': 'moscow_module_update',
+                        'message': data,
+                    }
+                )
+                logging.info("Данные отправлены в WebSocket-группу 'moscow_module_updates'")
         except Exception as e:
             logging.error(f"Ошибка при отправке данных в WebSocket: {e}")
 
@@ -139,7 +143,7 @@ class SessionProtocolParser(ByteParserBase):
             crc &= 0xFFFF
         return crc
 
-    def parse_packet(self):
+    async def parse_packet(self):
         # logging.info('Начинаем парсинг пакета...')
         try:
             header = {
@@ -177,7 +181,10 @@ class SessionProtocolParser(ByteParserBase):
 
             if header['size'] > 0:
                 payload_parser = PacketFactory.create_packet(payload, sender_ip)
-                payload = payload_parser.parse_packet()
+                if asyncio.iscoroutinefunction(payload_parser.parse_packet):
+                    payload = await payload_parser.parse_packet()
+                else:
+                    payload = payload_parser.parse_packet()
 
             parsed_data = {
                 'header': header,
@@ -403,9 +410,18 @@ class ConfigureData(ByteParserBase):
         ("count", "int"),
     ]
 
-    def __init__(self, hex_data: str):
+    PORT_DEVICE_MAP = {
+        1: 'БНТ (голова)',
+        2: 'БНТ (торец)',
+        3: 'БМВТ (голова)',
+        4: 'БМВТ (торец)',
+        5: 'БМВТ (мотор, голова)',
+    }
+
+    def __init__(self, hex_data: str, consumer: MoscowConsumer):
         super().__init__(hex_data)
         self.switch_ips = []
+        self.consumer = consumer
 
     def parse(self) -> Dict[str, Any]:
         parsed_data = {
@@ -418,7 +434,9 @@ class ConfigureData(ByteParserBase):
         for i in range(1, count + 1):
             raw_id = self.read("int32")
             parsed_data[f'id{i}_raw'] = raw_id
+
             id_data = self.decode_id(f'id{i}', raw_id)
+
             parsed_data.update(id_data)
             direction = self.read("byte")
             parsed_data[f'dir{i}'] = direction
@@ -432,11 +450,57 @@ class ConfigureData(ByteParserBase):
             if direction == 0x01:
                 left_switch_ip, right_switch_ip = right_switch_ip, left_switch_ip
 
-            self.switch_ips.append((left_switch_ip, right_switch_ip))
+            self.switch_ips.append((train, wagon, left_switch_ip, right_switch_ip))
 
         logging.info(f"Карта коммутаторов: {self.switch_ips}")
+        device_map = self.build_device_map()
+        logging.info(f"Карта устройств: {device_map}")
         logging.info(f"Отработал класс ConfigureData")
         return parsed_data
+
+    def build_device_map(self):
+        device_map = {}
+
+        for train, wagon, left_ip, right_ip in self.switch_ips:
+            wagon_key = f'wagon_{wagon}'
+            device_map[wagon_key] = {}
+
+            for side, ip, in [('left_side', left_ip), ('right_side', right_ip)]:
+                ports_info = self.get_ports_status(ip)
+                if ports_info:
+                    device_map[wagon_key][side] = ports_info
+
+        logging.info(f"Карта устройств: {device_map}")
+
+        return device_map
+
+    def get_ports_status(self, switch_ip: str) -> dict:
+        ports_statuses = {}
+
+        connected_devices = self.consumer.query_switch(switch_ip)
+
+        if not connected_devices:
+            logging.warning(f"Коммутатор {switch_ip} не ответил, используем mock-данные")
+            connected_devices = self.mock_devices()
+
+        for port, device_info in connected_devices.items():
+            device_ip = device_info['ip']
+            device_type = self.PORT_DEVICE_MAP.get(port, 'Unknown device')
+            status = device_info['status']
+
+            ports_statuses[f"port_{port} ({device_type})"] = (device_ip, port, status)
+
+        return ports_statuses
+
+    @staticmethod
+    def mock_devices() -> dict:
+        return {
+            1: {'ip': '192.168.1.101', 'status': 'connected'},
+            2: {'ip': '192.168.1.102', 'status': 'disconnected'},
+            3: {'ip': '192.168.1.103', 'status': 'connected'},
+            4: {'ip': '192.168.1.104', 'status': 'disconnected'},
+            5: {'ip': '192.168.1.105', 'status': 'connected'},
+        }
 
     @staticmethod
     def decode_id(prefix: str, raw_id: int) -> Dict[str, int]:

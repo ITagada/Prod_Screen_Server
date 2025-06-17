@@ -1,21 +1,30 @@
 import socket
 import struct
 import logging
-import json
 import asyncio
 
-from channels.utils import await_many_dispatch
 from django.core.cache import cache
 
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync, sync_to_async
 from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime as dt
 
-from Screen_Server.consumers_moscow import MoscowConsumer
+from Screen_Server.consumers_moscow import registry
 
 
 class ByteParserBase:
+    """
+    Базовый класс для парсинга HEX-пакетов.
+
+    Атрибуты:
+        data (str): HEX-представление пакета.
+        offset (int): Смещение текущего курсора чтения.
+        sender_ip (str): IP-адрес отправителя пакета.
+
+    Методы:
+        parse_packet(): Вызов метода `parse()` из подкласса.
+        read(data_type): Чтение и декодирование данных указанного типа из HEX.
+    """
     DATA_SIZE = {
         "int": 2,  # 2 символа HEX = 1 байт
         "float": 8,  # 8 символов HEX = 4 байта
@@ -79,6 +88,12 @@ class ByteParserBase:
 
 
 class SessionProtocolParser(ByteParserBase):
+    """
+    Парсер сетевого пакета верхнего уровня протокола.
+
+    Обрабатывает заголовок, проверяет контрольную сумму (CRC),
+    определяет тип полезной нагрузки и делегирует парсинг соответствующему подклассу.
+    """
     def __init__(self, hex_data: str):
         super().__init__(hex_data)
         self.channel_layer = get_channel_layer()
@@ -143,7 +158,11 @@ class SessionProtocolParser(ByteParserBase):
             crc &= 0xFFFF
         return crc
 
-    async def parse_packet(self):
+    def parse_packet(self):
+        """
+        Основной метод парсинга. Проверяет CRC, извлекает заголовок и полезную нагрузку.
+        Рассылает данные через WebSocket (если нужно).
+        """
         # logging.info('Начинаем парсинг пакета...')
         try:
             header = {
@@ -182,7 +201,7 @@ class SessionProtocolParser(ByteParserBase):
             if header['size'] > 0:
                 payload_parser = PacketFactory.create_packet(payload, sender_ip)
                 if asyncio.iscoroutinefunction(payload_parser.parse_packet):
-                    payload = await payload_parser.parse_packet()
+                    payload = payload_parser.parse_packet()
                 else:
                     payload = payload_parser.parse_packet()
 
@@ -234,6 +253,11 @@ def find_station_index(next_station_id: int) -> Tuple[Optional[int], Optional[in
 
 
 class OperationalData(ByteParserBase):
+    """
+    Парсит пакет с оперативной телеметрией поезда.
+
+    Пример данных: координаты, скорость, следующая станция и её дистанция, состояние дверей и т.д.
+    """
     structure: List[Tuple[str, str]] = [
         ("time", "str"),
         ("latitude", "float"),
@@ -248,6 +272,10 @@ class OperationalData(ByteParserBase):
     ]
 
     def parse(self) -> Dict[str, Any]:
+        """
+        Возвращает словарь с телеметрией и индексами текущей и следующей станции.
+        Кэширует информацию об этих индексах.
+        """
         parsed_data = {
             'dataType': self.__class__.__name__,
         }
@@ -267,12 +295,32 @@ class OperationalData(ByteParserBase):
         return parsed_data
 
 class AdditionalOperationalData(ByteParserBase):
+    """
+    Класс для парсинга дополнительной оперативной информации от поездов.
+
+    Пакет содержит:
+        - температуру на улице
+        - количество записей поездов (далее считываются по 4 поля на каждую запись):
+        - id{i}         — идентификатор устройства
+        - train{i}      — номер поезда
+        - temp{i}       — температура в вагоне
+        - passengers{i} — число пассажиров
+
+    Атрибуты:
+        structure (List[Tuple[str, str]]): Определяет начальную структуру пакета (до повторяющейся части).
+    """
     structure: List[Tuple[str, str]] = [
         ("outsideTemp", "int"),
         ("count", "int"),
     ]
 
     def parse(self) -> Dict[str, Any]:
+        """
+        Парсит и возвращает словарь с полной расшифровкой всех поездов в пакете.
+
+        Возвращает:
+            dict: Структурированные данные по каждому поезду.
+        """
         parsed_data = {
             'dataType': self.__class__.__name__,
         }
@@ -291,6 +339,18 @@ class AdditionalOperationalData(ByteParserBase):
 
 
 def get_stops_position(route_data):
+    """
+    Вычисляет координаты остановок вдоль условной линии маршрута.
+
+    Используется для визуального отображения маршрута (например, в SVG),
+    равномерно распределяя станции на отрезке длиной 100%.
+
+    Аргументы:
+        route_data (dict): Словарь с ключом 'stations', содержащим информацию о станциях маршрута.
+
+    Возвращает:
+        List[dict]: Список остановок с координатой `position` и мета-информацией по каждой станции.
+    """
     stops = []
     line_length = 100
     start_position = 0
@@ -332,6 +392,11 @@ def get_stops_position(route_data):
 
 
 class RouteData(ByteParserBase):
+    """
+    Парсит маршрут поезда: список станций, времена прибытия/отправления и идентификатор маршрута.
+
+    Также отправляет подтверждение серверу, если маршрут был успешно получен.
+    """
     structure: List[Tuple[str, str]] = [
         ("trainNumber", "str"),
         ("headSign", "str"),
@@ -355,6 +420,10 @@ class RouteData(ByteParserBase):
             raise {'status': 'error', 'error_message': str(e)}
 
     def parse(self) -> Dict[str, Any]:
+        """
+        Возвращает словарь с маршрутом и координатами остановок.
+        Если маршрут отличается от закэшированного — обновляет кэш.
+        """
         try:
             parsed_data = {
                 'dataType': self.__class__.__name__,
@@ -406,6 +475,11 @@ class RouteData(ByteParserBase):
 
 
 class ConfigureData(ByteParserBase):
+    """
+    Парсит конфигурационные данные: идентификаторы устройств, их направление и карта коммутаторов.
+
+    Обнаруживает подключённые устройства и классифицирует их как известные/неизвестные.
+    """
     structure: List[Tuple[str, str]] = [
         ("count", "int"),
     ]
@@ -418,10 +492,16 @@ class ConfigureData(ByteParserBase):
         5: 'БМВТ (мотор, голова)',
     }
 
-    def __init__(self, hex_data: str, consumer: MoscowConsumer):
+    def __init__(self, hex_data: str):
         super().__init__(hex_data)
-        self.switch_ips = []
-        self.consumer = consumer
+        self.switch_map: List[Tuple[str, str]] = []  # просто пары коммутаторов
+        self.device_map: Dict[str, Dict[int, Dict[str, Any]]] = {}  # ip → port → client
+        self.unknown_devices: List[Dict[str, Any]] = []  # клиенты не в карте коммутаторов
+
+    def get_connected_clients(self):
+        raw_clients = registry.get_all_clients()
+        logging.info(f'Информация о подключенных клиентах: {raw_clients}')
+        return [{'ip': ip, 'port': port, 'channel': channel_name} for (ip, port), channel_name in raw_clients.items()]
 
     def parse(self) -> Dict[str, Any]:
         parsed_data = {
@@ -450,57 +530,72 @@ class ConfigureData(ByteParserBase):
             if direction == 0x01:
                 left_switch_ip, right_switch_ip = right_switch_ip, left_switch_ip
 
-            self.switch_ips.append((train, wagon, left_switch_ip, right_switch_ip))
+            self.switch_map.append((left_switch_ip, right_switch_ip))
 
-        logging.info(f"Карта коммутаторов: {self.switch_ips}")
-        device_map = self.build_device_map()
-        logging.info(f"Карта устройств: {device_map}")
-        logging.info(f"Отработал класс ConfigureData")
+        self.map_devices()
+
+        logging.info(f"Карта коммутаторов: {self.switch_map}")
+        logging.info(f"Карта подключенных устройств: {self.device_map}")
+        logging.info(f"Неизвестные устройства: {self.unknown_devices}")
+        logging.info("Отработал класс ConfigureData")
+
         return parsed_data
 
-    def build_device_map(self):
-        device_map = {}
+    def map_devices(self):
+        """
+        Сопоставляет клиентов с IP-адресами из switch_map и классифицирует их.
+        """
+        clients = self.get_connected_clients()
+        all_switch_ips = {ip for pair in self.switch_map for ip in pair}
+        used_ips = set()
 
-        for train, wagon, left_ip, right_ip in self.switch_ips:
-            wagon_key = f'wagon_{wagon}'
-            device_map[wagon_key] = {}
+        for client in clients:
+            ip = client['ip']
+            port = client['port']
 
-            for side, ip, in [('left_side', left_ip), ('right_side', right_ip)]:
-                ports_info = self.get_ports_status(ip)
-                if ports_info:
-                    device_map[wagon_key][side] = ports_info
+            if ip in all_switch_ips:
+                self.device_map.setdefault(ip, {})[port] = client
+                used_ips.add((ip, port))
+            else:
+                self.unknown_devices.append(client)
 
-        logging.info(f"Карта устройств: {device_map}")
-
-        return device_map
-
-    def get_ports_status(self, switch_ip: str) -> dict:
-        ports_statuses = {}
-
-        connected_devices = self.consumer.query_switch(switch_ip)
-
-        if not connected_devices:
-            logging.warning(f"Коммутатор {switch_ip} не ответил, используем mock-данные")
-            connected_devices = self.mock_devices()
-
-        for port, device_info in connected_devices.items():
-            device_ip = device_info['ip']
-            device_type = self.PORT_DEVICE_MAP.get(port, 'Unknown device')
-            status = device_info['status']
-
-            ports_statuses[f"port_{port} ({device_type})"] = (device_ip, port, status)
-
-        return ports_statuses
-
-    @staticmethod
-    def mock_devices() -> dict:
-        return {
-            1: {'ip': '192.168.1.101', 'status': 'connected'},
-            2: {'ip': '192.168.1.102', 'status': 'disconnected'},
-            3: {'ip': '192.168.1.103', 'status': 'connected'},
-            4: {'ip': '192.168.1.104', 'status': 'disconnected'},
-            5: {'ip': '192.168.1.105', 'status': 'connected'},
-        }
+    # def build_device_map(self) -> List[Tuple[Optional[Dict], Optional[Dict]]]:
+    #     connected_clients = self.get_connected_clients()
+    #     connected_ips = {self.DEBUGGING_MAP.get(client['ip'], client['ip']): client for client in connected_clients}
+    #
+    #     ip_pairs = []
+    #     for pair in self.switch_pairs:
+    #         left_ip = pair['left']
+    #         right_ip = pair['right']
+    #         direction = pair['dir']
+    #
+    #         if direction == 0x01:
+    #             left_ip, right_ip = right_ip, left_ip
+    #
+    #         left_client = connected_ips.get(left_ip, None)
+    #         right_client = connected_ips.get(right_ip, None)
+    #
+    #         ip_pairs.append((left_client, right_client))
+    #
+    #     return ip_pairs
+    #
+    # def assign_device_names(self, device_map: List[Tuple[Optional[Dict], Optional[Dict]]]) -> List[str]:
+    #     readable_pairs = []
+    #
+    #     for left_ip, right_ip in device_map:
+    #         def format_client(c):
+    #             if not c:
+    #                 return "Не подключен"
+    #             port = c['port']
+    #             name = self.PORT_DEVICE_MAP.get(port, f"Порт {port}")
+    #             return f"{c['ip']}:{port} ({name})"
+    #
+    #         readable_pairs.append((
+    #             format_client(left_ip),
+    #             format_client(right_ip),
+    #         ))
+    #
+    #     return readable_pairs
 
     @staticmethod
     def decode_id(prefix: str, raw_id: int) -> Dict[str, int]:
@@ -513,7 +608,12 @@ class ConfigureData(ByteParserBase):
 
 
 class PacketFactory:
+    """
+    Фабрика классов для выбора правильного парсера полезной нагрузки по ID пакета.
 
+    Атрибуты:
+        PACKET_MAP (dict): Сопоставление ID → класс-парсер.
+    """
     PACKET_MAP = {
         '10': OperationalData,
         '11': AdditionalOperationalData,
@@ -522,7 +622,7 @@ class PacketFactory:
     }
 
     @staticmethod
-    def create_packet(data: bytes, sender_ip: str) -> ByteParserBase:
+    def create_packet(data: bytes, sender_ip: str, consumer=None) -> ByteParserBase:
         packet_id = data[:2]
         packet_calss = PacketFactory.PACKET_MAP.get(packet_id)
         if not packet_calss:

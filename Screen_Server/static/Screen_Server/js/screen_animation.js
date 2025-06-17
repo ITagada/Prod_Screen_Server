@@ -73,6 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function renderLine(lineName, lineIcon, lineColor) {
+        /**
+         * Отрисовывает заголовок линии с иконкой и названием.
+         * @param {string} lineName - Название линии.
+         * @param {string} lineIcon - Символ иконки линии.
+         * @param {string} lineColor - Цвет линии в формате CSS.
+         */
         lineContainer.innerHTML = '';
 
         const lineIconElement = document.createElement('span');
@@ -86,6 +92,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderStops(stops, lineColor, currentStation = null) {
+        /**
+         * Отрисовывает остановки на прогресс-баре, создавая контейнеры с названиями и точками.
+         * Опционально подсвечивает текущую станцию.
+         * @param {Array} stops - Массив объектов остановок.
+         * @param {string} lineColor - Цвет линии.
+         * @param {Object|null} currentStation - Текущая станция (если есть).
+         */
         progressBarContainer.innerHTML = '';
 
         const currentStationIndex = currentStation ? stops.findIndex(stop => stop.name === currentStation.name) : -1;
@@ -135,6 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawLine(startX, finishX, lineColor) {
+        /**
+         * Рисует линию прогресс-бара между стартовой и конечной остановками.
+         * @param {number} startX - Координата X начала линии.
+         * @param {number} finishX - Координата X конца линии.
+         * @param {string} lineColor - Цвет линии.
+         */
         if (finishX - startX <= 0) {
             progressLine.style.width = '0';
             console.warn('Have not points to start and finish');
@@ -159,6 +178,14 @@ document.addEventListener('DOMContentLoaded', () => {
    });
 
    function createStopContainer(stop, currentStationIndex = -1, stopIndex = -1) {
+       /**
+         * Создаёт DOM-элемент контейнера с информацией об остановке.
+         * Добавляет иконки пересадок, если они есть и станция позже текущей.
+         * @param {Object} stop - Объект остановки с полями name, name2, transfers.
+         * @param {number} currentStationIndex - Индекс текущей станции.
+         * @param {number} stopIndex - Индекс рассматриваемой остановки.
+         * @returns {HTMLElement} - Контейнер с информацией об остановке.
+         */
        const container = document.createElement('div');
        container.classList.add('stop-info');
        container.setAttribute('data-stop-index', stopIndex);
@@ -187,6 +214,12 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
    function addTransferIcons(stop, nameContainer) {
+       /**
+         * Добавляет иконки пересадок к контейнеру имени станции.
+         * Обрабатывает сложные случаи с двойными стрелками.
+         * @param {Object} stop - Остановка с информацией о пересадках.
+         * @param {HTMLElement} nameContainer - Контейнер имени станции.
+         */
        let arrowIcons = [];
 
        stop.transfers.forEach(transfer => {
@@ -233,6 +266,15 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
    function createStopPoint(stop, lineColor, currentX, stopIndex) {
+       /**
+         * Создаёт визуальную точку на прогресс-баре для остановки.
+         * Точка меняет стиль в зависимости от наличия пересадок.
+         * @param {Object} stop - Объект остановки.
+         * @param {string} lineColor - Цвет линии.
+         * @param {number} currentX - Координата по горизонтали.
+         * @param {number} stopIndex - Индекс остановки.
+         * @returns {HTMLElement} - Элемент точки остановки.
+         */
        const point = document.createElement('div');
        const hasTransfer = stop.transfers.some(transfer => transfer.transfer_name !== '');
 
@@ -251,6 +293,12 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
     function updateRoute(currentStation, nextStation, stops) {
+       /**
+         * Обновляет маршрут: анимирует сдвиг прогресс-бара, подсвечивает текущую станцию.
+         * @param {Object} currentStation - Текущая станция.
+         * @param {Object} nextStation - Следующая станция.
+         * @param {Array} stops - Массив всех остановок.
+         */
         const currentStationIndex = stops.findIndex(stop => stop.name === currentStation.name);
         const nextStationIndex = stops.findIndex(stop => stop.name === nextStation.name);
 
@@ -280,6 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function animateProgressBarShift(targetPosition, currentStationOffset, progressBarOffset) {
+       /**
+         * Анимирует плавный сдвиг прогресс-бара к целевой позиции.
+         * @param {number} targetPosition - Целевая позиция по оси X.
+         * @param {number} currentStationOffset - Текущая координата текущей станции.
+         * @param {number} progressBarOffset - Координата прогресс-бара.
+         * @returns {Promise} - Промис, разрешающийся после завершения анимации.
+         */
        return new Promise((resolve) => {
            const shiftX = targetPosition - (currentStationOffset - progressBarOffset);
            const start = performance.now();
@@ -303,6 +358,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
    function animateSpansOut(nameContainer) {
+       /**
+         * Анимирует скрытие span-элементов в контейнере имени станции.
+         * Возвращает промис, который резолвится после окончания анимаций.
+         * @param {HTMLElement} nameContainer - Контейнер имени станции.
+         * @returns {Promise}
+         */
        return new Promise((resolve) => {
            const spans = nameContainer.querySelectorAll('span');
            let animationsCompleted = 0;
@@ -325,6 +386,12 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
     function animateSpans(nameContainer) {
+       /**
+         * Анимирует появление span-элементов в контейнере имени станции.
+         * Возвращает промис, который резолвится после окончания анимаций.
+         * @param {HTMLElement} nameContainer - Контейнер имени станции.
+         * @returns {Promise}
+         */
        return new Promise((resolve) => {
            const spans = nameContainer.querySelectorAll('span');
            let animationsCompleted = 0;
@@ -347,6 +414,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleHighlight(nameContainer, highlight) {
+       /**
+         * Переключает подсветку имени станции с анимацией.
+         * Если highlight true — анимирует появление, иначе — скрытие.
+         * @param {HTMLElement} nameContainer - Контейнер имени станции.
+         * @param {boolean} highlight - Флаг подсветки.
+         * @returns {Promise}
+         */
        if (highlight) {
            return animateSpans(nameContainer);
        } else {
@@ -355,6 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function highlightCurrentStation(currentStation, stops) {
+       /**
+         * Подсвечивает текущую станцию на прогресс-баре.
+         * Снимает подсветку с других станций.
+         * @param {Object} currentStation - Текущая станция.
+         * @param {Array} stops - Массив остановок.
+         * @returns {Promise}
+         */
         return new Promise((resolve) => {
             const currentStationIndex = stops.findIndex(stop => stop.name === currentStation.name);
             if (currentStationIndex === -1) return resolve();
@@ -407,6 +488,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderWagons(wagons) {
+       /**
+         * Отрисовывает изображения вагонов в нижнем контейнере.
+         * Если контейнер вагонов отсутствует — создаёт новый.
+         * @param {Array} wagons - Массив объектов вагонов с base64-строкой изображения.
+         */
         let wagonsContainer = document.querySelector('.wagons-container');
 
         if (wagonsContainer) {
@@ -449,6 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPng(currentPng) {
+       /**
+         * Отрисовывает PNG-схему текущей станции как фон в нижнем контейнере.
+         * Если изображения нет — выводит предупреждение.
+         * @param {string} currentPng - Base64-код PNG-изображения.
+         */
        if (!currentPng) {
            console.warn("No image data available for current station.");
            return

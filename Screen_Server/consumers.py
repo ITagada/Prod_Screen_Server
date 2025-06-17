@@ -10,7 +10,17 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class BNTConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer, обрабатывающий подключение клиентских экранов БНТ.
+    После подключения отправляет начальные данные и подписывается на обновления маршрута.
+    """
     async def connect(self):
+        """
+        Обрабатывает подключение клиента:
+        - Сохраняет IP в глобальном списке CLIENTS_IP (если ещё не сохранён),
+        - Подключает клиента к группе 'route_updates',
+        - Отправляет клиенту контекст маршрута (информация о линии, станциях и вагонах).
+        """
         ip_address = self.scope['client'][0]
         if ip_address not in CLIENTS_IP:
             CLIENTS_IP.append(ip_address)
@@ -29,6 +39,14 @@ class BNTConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, code):
+        """
+        Обрабатывает отключение клиента:
+        - Удаляет IP клиента из CLIENTS_IP,
+        - Удаляет клиента из группы 'route_updates'.
+
+        Аргументы:
+            code (int): Код закрытия соединения.
+        """
         ip_address = self.scope['client'][0]
         if ip_address in CLIENTS_IP:
             CLIENTS_IP.remove(ip_address)
@@ -38,9 +56,20 @@ class BNTConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
+        """
+        Обработчик входящих сообщений от клиента.
+        Пока не реализован (pass).
+        """
         pass
 
     async def update_station(self, event):
+        """
+        Обрабатывает событие обновления маршрута, отправленное в группу 'route_updates'.
+        Пересылает клиенту обновлённые данные о текущей и следующей станции.
+
+        Аргументы:
+            event (dict): Должен содержать ключ 'message' с актуальной информацией о станции.
+        """
         station_data = event['message']
 
         await self.send(text_data=json.dumps({

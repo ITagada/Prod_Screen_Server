@@ -6,23 +6,41 @@ let localOffset = 0;
 const maxReconnectAttempts = 60;
 const reconnectInterval = 1000;
 
+/**
+ * Создаёт и настраивает WebSocket соединение с сервером,
+ * обрабатывает события открытия, получения сообщений,
+ * ошибок и закрытия соединения с логикой переподключения.
+ */
 function createWebSocket() {
     // Определяем адрес WebSocket-сервера
     socket = new WebSocket(`ws://${window.location.host}/ws/moscow_module/`);
 
-    // Обработчик открытия соединения
+    /**
+     * Обработчик успешного открытия WebSocket-соединения.
+     * Отправляет серверу ping-сообщение для проверки связи
+     * и сбрасывает счётчик попыток переподключения.
+     */
     socket.onopen = function () {
         console.log("WebSocket подключен");
         socket.send(JSON.stringify({type: 'ping'}));
         reconnectAttempts = 0;
     };
 
-    // Обработчик ошибок
+    /**
+     * Обработчик ошибок WebSocket-соединения.
+     * Логирует ошибку.
+     * @param {Event} error
+     */
     socket.onerror = function (error) {
         console.error("Ошибка WebSocket:", error);
     };
 
-    // Обработчик получения сообщения
+    /**
+     * Обработчик получения сообщения от сервера.
+     * В зависимости от типа сообщения обновляет маршрут,
+     * прогресс бар и синхронизирует время.
+     * @param {MessageEvent} event
+     */
     socket.onmessage = function (event) {
         const data = JSON.parse(event.data);
         console.log("Получены данные:", data);
@@ -55,7 +73,11 @@ function createWebSocket() {
         }
     };
 
-    // Обработчик закрытия соединения
+    /**
+     * Обработчик закрытия WebSocket-соединения.
+     * Пытается переподключиться с интервалом, если не достигнут лимит попыток.
+     * @param {CloseEvent} event
+     */
     socket.onclose = function (event) {
         console.log("WebSocket закрыт:", event);
 
@@ -73,6 +95,12 @@ function createWebSocket() {
 
 createWebSocket();
 
+/**
+ * Проверяет, изменился ли список остановок, сравнивая старый и новый массивы.
+ * Возвращает true, если изменился (по длине или stationID), иначе false.
+ * @param {Array} newStops
+ * @returns {boolean}
+ */
 function isStopsChanged(newStops) {
     if (!stops || stops.length !== newStops.length) {
         return true;
@@ -82,6 +110,12 @@ function isStopsChanged(newStops) {
     });
 }
 
+/**
+ * Отрисовывает список остановок на странице.
+ * Очищает старые элементы, создаёт новые div для каждой остановки,
+ * позиционирует их и добавляет подписи.
+ * @param {Array} stops
+ */
 function renderStops(stops) {
     const routeElement = document.getElementById('route');
 
@@ -107,6 +141,12 @@ function renderStops(stops) {
     });
 }
 
+/**
+ * Обновляет прогресс-бар маршрута, выделяя пройденные и текущие остановки.
+ * Меняет классы CSS у элементов и ширину заполненного сегмента.
+ * @param {number} currentIndex - индекс текущей остановки
+ * @param {number} nextIndex - индекс следующей остановки (пока не используется)
+ */
 function updateProgressBar(currentIndex, nextIndex) {
     const stops = document.querySelectorAll('.stop');
     const labels = document.querySelectorAll('.label-wrapper');
@@ -131,17 +171,22 @@ function updateProgressBar(currentIndex, nextIndex) {
     }
 }
 
+/**
+ * Обрабатывает сообщение времени с сервера.
+ * Сохраняет серверное время и вычисляет смещение относительно локального.
+ * @param {string} time - время с сервера в ISO-формате или timestamp
+ */
 function handleServerMessage(time) {
     serverTime = new Date(time);
     localOffset = serverTime - Date.now();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Получение данных остановок из контейнера
-    // var stops = JSON.parse(document.getElementById('stops-data').textContent)
-    // console.log('Stops data', stops);
-
-    // Создание контейнеров динамически
+    /**
+     * Динамическое создание основной структуры DOM для интерфейса:
+     * контейнеры, заголовки, элементы для маршрута, времени и температуры.
+     * Также запускается таймер обновления времени.
+     */
     var mainContainer = document.createElement('div');
     mainContainer.className = 'main';
     document.body.appendChild(mainContainer);
@@ -300,6 +345,10 @@ document.addEventListener('DOMContentLoaded', function() {
     col3_2.id = 'col-3-2';
     container3.appendChild(col3_2);
 
+    /**
+     * Функция обновления времени и даты с учётом смещения сервера.
+     * Обновляет текстовые поля каждые 1 секунду.
+     */
     function updateTime() {
         if (!serverTime) return;
 

@@ -1,3 +1,14 @@
+"""
+Модуль обработки UDP-пакетов и определения состояния транспортного модуля.
+
+Основные задачи:
+- Сниффинг UDP-пакетов (с использованием Scapy)
+- Определение и переключение на нужный модуль (например, 'moscow')
+- Запуск асинхронного UDP-клиента через asyncio и MoscowProtocol
+- Отрисовка базовых Django-страниц в зависимости от состояния
+"""
+
+
 import threading
 import logging
 import asyncio
@@ -16,17 +27,20 @@ from .moscow import SessionProtocolParser
 logging.basicConfig(level=logging.DEBUG)
 
 
-LAST_PACKET_DATA = None
-MODULE_STATE = None
-MOSCOW_PORT = 29789
-MOSCOW_CLIENT_RUNNING = False
-_sniffing_started = False
+# Глобальные переменные
+LAST_PACKET_DATA = None           # Последние данные из UDP пакета (в hex)
+MODULE_STATE = None               # Состояние активного модуля (moscow и т.п.)
+MOSCOW_PORT = 29789               # Порт для обработки 'московского' протокола
+MOSCOW_CLIENT_RUNNING = False     # Запущен ли клиент
+_sniffing_started = False         # Был ли запущен сниффер
 
 # Функция для запуска UDP-сервера
 def packet_callback(packet):
     """
-    Обрабатывает входящий сетевой пакет, преобразует его в HEX-строку
-    и парсит с помощью SessionProtocolParser.
+    Callback-функция для обработки UDP-пакетов.
+    Определяет тип модуля и сохраняет hex-данные, если это Raw-пакет.
+
+    :param packet: объект scapy.packet.Packet
     """
     global LAST_PACKET_DATA, MODULE_STATE
     try:
@@ -49,9 +63,16 @@ def packet_callback(packet):
 
 
 def start_sniffing():
+    """
+    Запускает Scapy-сниффинг UDP-пакетов на заданном интерфейсе и порту.
+    Используется фильтр: udp and port 29789
+    """
     sniff(prn=packet_callback, iface="enp6s0", filter='udp and port 29789', store=0, monitor=True)
 
 def start_sniffing_thread():
+    """
+    Запускает сниффинг в отдельном потоке, если ещё не был запущен.
+    """
     global _sniffing_started
     if not _sniffing_started:
         _sniffing_started = True
@@ -59,6 +80,10 @@ def start_sniffing_thread():
         sniff_thread.start()
 
 def index(request):
+    """
+    Главная точка входа. Если модуль не определён — запускает сниффинг.
+    Если уже определён как 'moscow', делает редирект на moscowBNT.
+    """
     global MODULE_STATE
     if MODULE_STATE is None:
         start_sniffing_thread()
@@ -67,16 +92,29 @@ def index(request):
     return render(request, 'Screen_Server/index.html')
 
 def moscowBNT(request):
+    """
+    Отображает страницу Moscow BNT (интерфейс управления).
+    """
     return render(request, 'Screen_Server/moscowBNT.html')
 
 
 
 def get_module_state(request):
+    """
+    Возвращает JSON с текущим состоянием модуля.
+    Используется фронтендом для определения интерфейса.
+
+    :return: JsonResponse вида {"module_state": "moscow" или None}
+    """
     global MODULE_STATE
     return JsonResponse({'module_state': MODULE_STATE})
 
 
 async def moscow_client():
+    """
+    Асинхронный UDP-клиент, принимающий и обрабатывающий пакеты,
+    используя MoscowProtocol.
+    """
     logging.info(f"Запуск UDP-клиента для порта {MOSCOW_PORT}")
     loop = asyncio.get_event_loop()
 
@@ -93,6 +131,9 @@ async def moscow_client():
 
 
 def start_moscow_client():
+    """
+    Инициализирует запуск UDP-клиента, если он ещё не был запущен.
+    """
     global MOSCOW_CLIENT_RUNNING
     if MOSCOW_CLIENT_RUNNING:
         logging.warning("UDP-клиент уже запущен")
@@ -106,7 +147,14 @@ def start_moscow_client():
 
 
 class MoscowProtocol(asyncio.DatagramProtocol):
-    """Кастомный протокол для обработки входящих и исходящих UDP-пакетов."""
+    """
+    Пользовательский протокол для обработки UDP-пакетов от московского модуля.
+    Содержит методы:
+    - connection_made: обработка установления соединения
+    - datagram_received: приём данных
+    - error_received: обработка ошибок
+    - connection_lost: завершение соединения
+    """
 
     def connection_made(self, transport):
         self.transport = transport
@@ -119,6 +167,11 @@ class MoscowProtocol(asyncio.DatagramProtocol):
         parser.parse_packet()
 
     def send_diagnostics(selfself, message: bytes):
+        """
+        Отправка диагностических данных по UDP.
+
+        :param message: байтовое сообщение
+        """
         logging.info(f"Отправлены диагностические данные: {message.hex()}")
 
     def error_received(self, error):

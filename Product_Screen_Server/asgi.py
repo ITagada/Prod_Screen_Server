@@ -1,3 +1,14 @@
+"""
+asgi.py
+
+Точка входа для ASGI-приложения Django с поддержкой WebSocket через Django Channels.
+
+Основные компоненты:
+- HTTP-приложение через `get_asgi_application`
+- WebSocket-приложение, обернутое в AuthMiddlewareStack для поддержки аутентификации
+- URL-маршруты WebSocket подключаются через `routing.websocket_urlpatterns`
+"""
+
 
 import os
 

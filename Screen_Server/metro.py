@@ -24,17 +24,28 @@ CLIENTS_IP = []
 
 
 class Client:
+    """
+    Представляет клиента на основе IP-адреса, вычисляя номер вагона и сторону (левая/правая).
+    """
     def __init__(self, ip_address):
         self.ip_address = ip_address
         self.wagon_number, self.side = self._determine_parametrs()
 
     def _determine_parametrs(self):
+        """
+        Определяет номер вагона и сторону по последнему октету IP-адреса.
+        Возвращает:
+            tuple: (wagon_number, side)
+        """
         last_octet = int(self.ip_address.split('.')[-1])
         wagon_number = last_octet // 10
         side = 'Left' if last_octet % 2 == 0 else 'Right'
         return wagon_number, side
 
     def get_client_attr(self):
+        """
+        Возвращает словарь с информацией о клиенте.
+        """
         return {
             'ip_address': self.ip_address,
             'wagon_number': self.wagon_number,
@@ -43,6 +54,15 @@ class Client:
 
 
 def parse_station(station):
+    """
+    Извлекает информацию о станции и пересадках из XML-элемента станции.
+
+    Аргументы:
+        station (Element): XML-элемент <station>.
+
+    Возвращает:
+        dict: Словарь с данными станции, включая пересадки.
+    """
     transfers = []
     for transfer in station.findall('transfer'):
         icon_parts = [
@@ -72,6 +92,15 @@ def parse_station(station):
     }
 
 def get_stop_info(ROOT):
+    """
+    Считывает и парсит все станции маршрута и иконки линии из XML-дерева.
+
+    Аргументы:
+        ROOT (Element): Корневой XML-элемент.
+
+    Возвращает:
+        dict: Структура маршрута с данными по линии и станциям.
+    """
     stations = []
 
     for station in ROOT.findall('station'):
@@ -115,12 +144,24 @@ def get_stop_info(ROOT):
 #     return redirect('BNT')
 
 def get_BNT(request):
+    """
+    Обрабатывает запрос к BNT-интерфейсу и регистрирует IP клиента.
+
+    Возвращает:
+        HttpResponse: Отрисовка шаблона BNT.html.
+    """
     ip_address = get_clietnt_ip(request)
     if ip_address not in CLIENTS_IP:
         CLIENTS_IP.append(ip_address)
     return render(request, 'Screen_Server/BNT.html')
 
 def get_clietnt_ip(request):
+    """
+    Получает IP-адрес клиента из заголовков запроса.
+
+    Возвращает:
+        str: IP-адрес клиента.
+    """
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         ip = x_forwarded_for.split(',')[0]
@@ -129,6 +170,15 @@ def get_clietnt_ip(request):
     return ip
 
 def get_BNT_data(client_ip):
+    """
+    Формирует контекст данных маршрута и клиента для BNT интерфейса.
+
+    Аргументы:
+        client_ip (str): IP-адрес клиента.
+
+    Возвращает:
+        dict: Контекст с маршрутом, иконками, сторонами и вагонами.
+    """
     route = get_stop_info(ROOT)
     client = Client(client_ip)
     wagons_obj = collect_wagons(size=8, side=client.side, current_wagon=client.wagon_number)
@@ -155,6 +205,13 @@ def get_BNT_data(client_ip):
     return context
 
 def update_route():
+    """
+    Обновляет текущую станцию и определяет следующую станцию.
+    Также извлекает PNG изображение станции и кеширует индекс.
+
+    Возвращает:
+        dict: Информация о текущей и следующей станции.
+    """
     route = get_stop_info(ROOT)
     stations = route['stations']
 
@@ -191,6 +248,16 @@ def update_route():
     return current_station_data
 
 def get_station_config(station_index, is_reverse=False):
+    """
+    Загружает конфигурацию станции по её индексу из config.ini.
+
+    Аргументы:
+        station_index (int): Индекс станции.
+        is_reverse (bool): Обратный путь или нет.
+
+    Возвращает:
+        dict: Конфигурация, включая имя PNG-файла.
+    """
     folder_name = f"{station_index}o" if is_reverse else str(station_index)
     station_config_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'Way 1', folder_name, 'config.ini')
 
@@ -213,6 +280,15 @@ def get_station_config(station_index, is_reverse=False):
     return {'PNG': png_value}
 
 def format_image(image_name):
+    """
+    Кодирует PNG-изображение станции в base64.
+
+    Аргументы:
+        image_name (str): Название PNG-файла.
+
+    Возвращает:
+        str | None: Base64-строка изображения или None, если файл не найден.
+    """
     image_path = os.path.join(settings.BASE_DIR, 'L1', 'R2', 'PNG', image_name)
     try:
         with open(image_path, 'rb') as image_file:
@@ -221,6 +297,9 @@ def format_image(image_name):
         return None
 
 def send_current_route_data():
+    """
+    Отправляет обновлённые данные маршрута через WebSocket в группу 'route_updates'.
+    """
     station_data = update_route()
     channel_layer = get_channel_layer()
 
@@ -234,6 +313,17 @@ def send_current_route_data():
 
 
 def collect_wagons(size=8, side='Left', current_wagon = 1):
+    """
+    Сканирует директорию вагонов и возвращает список изображений вагонов в base64.
+
+    Аргументы:
+        size (int): Количество вагонов.
+        side (str): Сторона ('Left' или 'Right').
+        current_wagon (int): Номер текущего вагона (для подсветки активного).
+
+    Возвращает:
+        list: Список словарей с именами файлов и base64-изображениями.
+    """
     wagons_dir = os.path.join(settings.BASE_DIR, 'Wagons/')
     wagons_obj = []
 
